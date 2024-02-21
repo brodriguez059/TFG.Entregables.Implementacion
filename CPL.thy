@@ -4,6 +4,7 @@ begin
 
 (* Types *)
 
+(*TODO: Look for a way of defining string with compatible dom operation for partial mappings (instead of using char)*)
 type_synonym Variable =  "char"
 
 type_synonym Relation =  "char"
@@ -14,7 +15,7 @@ type_synonym 'a Interpretation = "Relation \<rightharpoonup> 'a list set"
 
 datatype 'a Structure =  Structure (Sig: "Signature") (Universe: "'a set")  (I: "'a Interpretation")
 
-fun wfStructure :: "'a Structure \<Rightarrow> bool" where 
+fun wfStructure :: "'a Structure \<Rightarrow> bool" where
 "wfStructure (Structure sig b interpret) = (
   (b \<noteq> {})  \<and>
   ( \<forall>r \<in> dom(sig). (
@@ -45,7 +46,7 @@ datatype Formula =
 | Forall Variable Formula
 | Exists Variable Formula
 
-fun wfFormula :: "Formula \<Rightarrow> Signature \<Rightarrow> bool" where (*Redefine using difference to optimize it*)
+fun wfFormula :: "Formula \<Rightarrow> Signature \<Rightarrow> bool" where
 "wfFormula (Atom r varlist) sig = (
     case (sig r) of
     None \<Rightarrow> False |
@@ -55,12 +56,14 @@ fun wfFormula :: "Formula \<Rightarrow> Signature \<Rightarrow> bool" where (*Re
 "wfFormula (Forall x phi) sig = (wfFormula phi sig)" |
 "wfFormula (Exists x phi) sig = (wfFormula phi sig)"
 
+(* Not needed: can be casted using just `set`
 fun ListToSet :: "'a list  \<Rightarrow> 'a set" where
 "ListToSet([]) = {}" |
 "ListToSet(x#xs) = {x} \<union> ListToSet(xs)"
+*)
 
 fun freeVar :: "Formula \<Rightarrow> Variable set" where
-"freeVar(Atom r varlist) = ListToSet varlist" |
+"freeVar(Atom r varlist) = set varlist" |
 "freeVar(And phi1 phi2) = freeVar phi1 \<union> freeVar phi2" |
 "freeVar(Forall x phi) = freeVar phi - {x}" |
 "freeVar(Exists x phi) = freeVar phi - {x}"
@@ -68,20 +71,24 @@ fun freeVar :: "Formula \<Rightarrow> Variable set" where
 fun sentence :: "Formula \<Rightarrow> bool" where
 "sentence(phi) = (freeVar(phi) = {})"
 
-(* Some tests
-(*This works a mapping:*)
-definition "s \<equiv> (\<lambda>_. None)
-  (''E'' := Some 2)
-"
-value "wfFormula (Exists ''x'' (Forall ''y'' (And (Atom ''E'' [''x'',''y'']) (Exists ''x'' (Atom ''E'' [''x'',''y'']))))) (s::Signature)"
-value "sentence (Exists ''x'' (Forall ''y'' (And (Atom ''E'' [''x'',''y'']) (Exists ''x'' (Atom ''E'' [''x'',''y''])))))"
-*)
-
 (* Semantics *)
 
 type_synonym 'a Valuation = "Variable \<Rightarrow> 'a"
 
 datatype 'a Judgement =  Judgement (index: "nat") (V:  "Variable set") (F:  "'a Valuation set")
+
+fun formulaToList :: "Formula \<Rightarrow> Formula list" where
+"formulaToList (Atom r varlist) = [Atom r varlist]" |
+"formulaToList (And phi0 phi1) = [And phi0 phi1] @ (formulaToList phi0) @ (formulaToList phi1)" |
+"formulaToList (Forall x phi) = [Forall x phi] @ (formulaToList phi)" |
+"formulaToList (Exists x phi) = [Exists x phi] @ (formulaToList phi)"
+
+fun setOfIndex :: "Formula list \<Rightarrow> nat set" where
+"setOfIndex fs = {x. x < length(fs)}"
+
+(* Operator `!` is the get by index operator. TODO: Add signature here to maintain well formedness *)
+fun FoI :: "nat \<Rightarrow> Formula list \<Rightarrow> Formula" where
+"FoI n fs = fs ! n"
 
 fun wfQCSP_Instance :: "Formula \<Rightarrow> 'a Structure \<Rightarrow> bool" where
 "wfQCSP_Instance phi B = (
@@ -108,7 +115,12 @@ definition "myFormula \<equiv> (
 
 value "wfFormula myFormula s"
 
+(* TODO: Add checks regarding the sets V and F*)
 fun wfJudgement :: "'a Judgement \<Rightarrow> Formula \<Rightarrow> 'a Structure \<Rightarrow> bool" where
-"wfJudgement J phi B = (wfQCSP_Instance phi B)"
+"wfJudgement J phi B = (
+  (wfQCSP_Instance phi B) \<and>
+  ((index J) \<in> (setOfIndex (formulaToList phi))) \<and>
+  ((V J) \<subseteq> (freeVar (FoI (index J) (formulaToList phi))))
+)"
 
 
