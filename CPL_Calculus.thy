@@ -6,25 +6,43 @@ begin
 
 (* ================= Type Definitions ================= *)
 
-(*TODO: Look for a way of defining string with compatible dom operation for partial mappings (instead of using char)*)
+(*TODO: Explain the caveats of using string. We will have to keep using char for now *)
 type_synonym Variable =  "char"
 type_synonym Relation =  "char"
 datatype Formula =
-  Atom Relation "Variable list"
-| And Formula Formula
-| Forall Variable Formula
-| Exists Variable Formula
+  Atom (Rel: "Relation") (VarList: "Variable list")
+| And (and_f1: "Formula") (and_f2: "Formula")
+| Forall (forall_x: "Variable") (forall_f: "Formula")
+| Exists (exists_x: "Variable") (exists_f: "Formula")
 
-(* ================= Auxiliary Formulas ================= *)
+(* ================= Auxiliary Functions ================= *)
 
 fun freeVar :: "Formula \<Rightarrow> Variable set" where
-"freeVar(Atom r var_list) = set var_list" |
-"freeVar(And \<phi>\<^sub>0 \<phi>\<^sub>1) = freeVar \<phi>\<^sub>0 \<union> freeVar \<phi>\<^sub>1" |
-"freeVar(Forall x \<phi>) = freeVar \<phi> - {x}" |
-"freeVar(Exists x \<phi>) = freeVar \<phi> - {x}"
+"freeVar (Atom r var_list) = set var_list" |
+"freeVar (And \<phi>\<^sub>0 \<phi>\<^sub>1) = freeVar \<phi>\<^sub>0 \<union> freeVar \<phi>\<^sub>1" |
+"freeVar (Forall x \<phi>) = freeVar \<phi> - {x}" |
+"freeVar (Exists x \<phi>) = freeVar \<phi> - {x}"
 
 fun sentence :: "Formula \<Rightarrow> bool" where
 "sentence \<phi> = ((freeVar \<phi>) = {})"
+
+fun isAtom :: "Formula \<Rightarrow> bool" where
+"isAtom (Atom r var_list) = True" |
+"isAtom (And \<phi>\<^sub>1 \<phi>\<^sub>2) = False" |
+"isAtom (Forall x \<phi>) = False" |
+"isAtom (Exists x \<phi>) = False"
+
+fun isAnd :: "Formula \<Rightarrow> bool" where
+"isAnd (Atom r var_list) = False" |
+"isAnd (And \<phi>\<^sub>1 \<phi>\<^sub>2) = True" |
+"isAnd (Forall x \<phi>) = False" |
+"isAnd (Exists x \<phi>) = False"
+
+fun isForall :: "Formula \<Rightarrow> bool" where
+"isForall (Atom r var_list) = False" |
+"isForall (And \<phi>\<^sub>1 \<phi>\<^sub>2) = False" |
+"isForall (Forall x \<phi>) = True" |
+"isForall (Exists x \<phi>) = False"
 
 (* ======================== Semantics ======================== *)
 
@@ -40,16 +58,15 @@ datatype 'a Judgement =  Judgement (Index: "nat") (Vars:  "Variable set") (Funcs
 
 fun formulaToList :: "Formula \<Rightarrow> Formula list" where
 "formulaToList (Atom r var_list) = [Atom r var_list]" |
-"formulaToList (And \<phi>\<^sub>0 \<phi>\<^sub>1) = [And \<phi>\<^sub>0 \<phi>\<^sub>1] @ (formulaToList \<phi>\<^sub>0) @ (formulaToList \<phi>\<^sub>1)" |
+"formulaToList (And \<phi>\<^sub>1 \<phi>\<^sub>2) = [And \<phi>\<^sub>1 \<phi>\<^sub>2] @ (formulaToList \<phi>\<^sub>1) @ (formulaToList \<phi>\<^sub>2)" |
 "formulaToList (Forall x \<phi>) = [Forall x \<phi>] @ (formulaToList \<phi>)" |
 "formulaToList (Exists x \<phi>) = [Exists x \<phi>] @ (formulaToList \<phi>)"
 
 fun setOfIndex :: "Formula list \<Rightarrow> nat set" where
-"setOfIndex formula_list = {1..((length formula_list) + 1)}"
+"setOfIndex formula_list = {1..(length formula_list)}"
 
-(* Operator `!` is the get by index operator. TODO: Add signature here to maintain well formedness *)
 fun FoI :: "nat \<Rightarrow> Formula list \<Rightarrow> Formula" where
-"FoI formula_index formula_list = formula_list ! formula_index"
+"FoI formula_index formula_list = formula_list ! (formula_index - 1)"
 
 (* ================= Well-Formedness Functions ================= *)
 
@@ -59,11 +76,11 @@ fun wfFormula :: "Formula \<Rightarrow> Signature \<Rightarrow> bool" where
     None \<Rightarrow> False |
     (Some n) \<Rightarrow> length(var_list) = n
   )" |
-"wfFormula (And \<phi>\<^sub>0 \<phi>\<^sub>1) signature = ((wfFormula \<phi>\<^sub>0 signature) \<and> (wfFormula \<phi>\<^sub>1 signature))" |
+"wfFormula (And \<phi>\<^sub>1 \<phi>\<^sub>2) signature = ((wfFormula \<phi>\<^sub>1 signature) \<and> (wfFormula \<phi>\<^sub>2 signature))" |
 "wfFormula (Forall x \<phi>) signature = (wfFormula \<phi> signature)" |
 "wfFormula (Exists x \<phi>) signature = (wfFormula \<phi> signature)"
 
-(* TODO: Explicar el porqué añadimos (set l \<subseteq> universe) *)
+(* TODO: Explicar por qué añadimos (set l \<subseteq> universe) *)
 fun wfStructure :: "'a Structure \<Rightarrow> bool" where
 "wfStructure (Structure signature universe interpretation) = (
   ( universe \<noteq> {} )  \<and>
@@ -80,14 +97,11 @@ fun wfStructure :: "'a Structure \<Rightarrow> bool" where
   )
 )"
 
-fun wfCPL_Instance :: "Formula \<Rightarrow> 'a Structure \<Rightarrow> bool" where
-"wfCPL_Instance \<phi> \<B> = (let
-  structure_signature = (Sig \<B>)
-  in (
+fun wfCPLInstance :: "Formula \<Rightarrow> 'a Structure \<Rightarrow> bool" where
+"wfCPLInstance \<phi> \<B> = (
   (wfStructure \<B>) \<and>
   (sentence \<phi>) \<and>
-  (wfFormula \<phi> structure_signature)
-  )
+  (wfFormula \<phi> (Sig \<B>))
 )"
 
 fun wfJudgement :: "'a Judgement \<Rightarrow> Formula \<Rightarrow> 'a Structure \<Rightarrow> bool" where
@@ -98,7 +112,7 @@ fun wfJudgement :: "'a Judgement \<Rightarrow> Formula \<Rightarrow> 'a Structur
   judgement_valuations = (Funcs \<J>);
   structure_domain = (Univ \<B>)
   in (
-    ( wfCPL_Instance \<phi> \<B> ) \<and>
+    ( wfCPLInstance \<phi> \<B> ) \<and>
     ( judgement_index \<in> (setOfIndex formula_list) ) \<and>
     ( judgement_free_vars \<subseteq> (freeVar (FoI judgement_index formula_list)) ) \<and>
     ( \<forall>f \<in> judgement_valuations. ((dom f) = judgement_free_vars) )  \<and>
@@ -108,11 +122,122 @@ fun wfJudgement :: "'a Judgement \<Rightarrow> Formula \<Rightarrow> 'a Structur
 
 (* ================= Proof System Functions ================= *)
 
+(* TODO: Check if we can make this function work with Map functions *)
+fun projectValuation :: "'a Valuation \<Rightarrow> Variable set \<Rightarrow> 'a Valuation" where
+"projectValuation f V = (
+  \<lambda>x. if V \<subseteq> (dom f) \<and> x \<in> V then f x else None
+)"
+
+fun buildValuation :: "Variable list \<Rightarrow> 'a list \<Rightarrow> 'a Valuation"  where
+"buildValuation [] [] = Map.empty " |
+"buildValuation variables values = Map.empty (variables [\<mapsto>] values)"
+
+fun isProjection :: "'a Judgement \<Rightarrow> 'a Judgement \<Rightarrow> Formula \<Rightarrow> 'a Structure \<Rightarrow> bool" where
+"isProjection \<J>\<^sub>1 \<J>\<^sub>2 \<phi> \<B> = (
+  ( (wfJudgement \<J>\<^sub>1 \<phi> \<B>) \<and> (wfJudgement \<J>\<^sub>2 \<phi> \<B>) ) \<and>
+  ( (Index \<J>\<^sub>1) = (Index \<J>\<^sub>2) ) \<and>
+  ( (Funcs \<J>\<^sub>1) = {projectValuation f (Vars \<J>\<^sub>1) | f. f \<in> (Funcs \<J>\<^sub>2)} )
+)"
+
+fun isDualProjection :: "'a Judgement \<Rightarrow> 'a Judgement \<Rightarrow> Formula \<Rightarrow> 'a Structure \<Rightarrow> bool" where
+"isDualProjection \<J>\<^sub>1 \<J>\<^sub>2 \<phi> \<B> = (
+  ( (wfJudgement \<J>\<^sub>1 \<phi> \<B>) \<and> (wfJudgement \<J>\<^sub>2 \<phi> \<B>) )
+)" (* TODO: Finish this function *)
+
+fun isJoin :: "'a Judgement \<Rightarrow> 'a Judgement \<Rightarrow> 'a Judgement \<Rightarrow> Formula \<Rightarrow> 'a Structure \<Rightarrow> bool" where
+"isJoin \<J> \<J>\<^sub>1 \<J>\<^sub>2 \<phi> \<B> = (
+  (  (wfJudgement \<J> \<phi> \<B>) \<and> (wfJudgement \<J>\<^sub>1 \<phi> \<B>) \<and> (wfJudgement \<J>\<^sub>2 \<phi> \<B>) ) \<and>
+  ( ((Index \<J>) = (Index \<J>\<^sub>1)) \<and> ((Index \<J>\<^sub>1) = (Index \<J>\<^sub>2)) ) \<and>
+  ( ((Vars \<J>) = (Vars \<J>\<^sub>1)) \<and> ((Vars \<J>\<^sub>1) = (Vars \<J>\<^sub>2)) )
+)" (* TODO: Finish this function *)
+
+fun isUpwardFlow :: "'a Judgement \<Rightarrow> 'a Judgement \<Rightarrow> Formula \<Rightarrow> 'a Structure \<Rightarrow> bool" where
+"isUpwardFlow \<J>\<^sub>1 \<J>\<^sub>2 \<phi> \<B> = (
+  ( (wfJudgement \<J>\<^sub>1 \<phi> \<B>) \<and> (wfJudgement \<J>\<^sub>2 \<phi> \<B>) ) \<and>
+  ( (Vars \<J>\<^sub>1) = (Vars \<J>\<^sub>2) ) \<and>
+  ( (Funcs \<J>\<^sub>1) = (Funcs \<J>\<^sub>2) ) \<and>
+  ( (Index \<J>\<^sub>1 + 1) = (Index \<J>\<^sub>2) )
+)" (* TODO: Fix this function, we cannot use Index J_1 + 1 to indicate the parent *)
+
+(* ================= Proof System ================= *)
+
+inductive isDerivable :: "'a Judgement \<Rightarrow> Formula \<Rightarrow> 'a Structure \<Rightarrow> bool" where
+(* Atom rule *)
+ATR: "\<lbrakk>
+  wfCPLInstance \<phi> \<B>;
+  wfJudgement \<J> \<phi> \<B>;
+  (let
+    \<psi> = (FoI (Index \<J>) (formulaToList \<phi>));
+    interpretation = (Interp \<B>);
+    V = (Vars \<J>)
+  in
+    (isAtom \<psi>) \<and>
+    (V = (set (VarList \<psi>))) \<and>
+    (\<exists>set_of_list. (
+        ((interpretation (Rel \<psi>)) = Some set_of_list) \<and>
+        ((Funcs \<J>) = { buildValuation (VarList \<psi>) l | l. l \<in> set_of_list})
+      )
+    )
+  )
+  \<rbrakk> \<Longrightarrow> isDerivable \<J> \<phi> \<B>"
+| (* Projection rule *)
+PJR: "\<lbrakk>
+  wfCPLInstance \<phi> \<B>;
+  wfJudgement \<J> \<phi> \<B>;
+  (\<exists>\<J>'. (
+    (wfJudgement \<J>' \<phi> \<B>) \<and>
+    (isProjection \<J> \<J>' \<phi> \<B>) \<and>
+    (isDerivable \<J>' \<phi> \<B>)
+  ))
+  \<rbrakk> \<Longrightarrow> isDerivable \<J> \<phi> \<B>"
+| (* Join rule *)
+JNR: "\<lbrakk>
+  wfCPLInstance \<phi> \<B>;
+  wfJudgement \<J> \<phi> \<B>;
+  (let
+    \<psi> = (FoI (Index \<J>) (formulaToList \<phi>))
+  in
+    (isAnd \<psi>)
+  );
+  (\<exists>\<J>\<^sub>0 \<J>\<^sub>1. (
+    (wfJudgement \<J>\<^sub>0 \<phi> \<B> \<and> wfJudgement \<J>\<^sub>1 \<phi> \<B>) \<and>
+    ((Index \<J>\<^sub>1) = (Index \<J>\<^sub>0)) \<and>
+    (isDerivable \<J>\<^sub>0 \<phi> \<B> \<and> isDerivable \<J>\<^sub>1 \<phi> \<B>) \<and>
+    (isJoin \<J> \<J>\<^sub>0 \<J>\<^sub>1 \<phi> \<B>)
+  ))
+  \<rbrakk> \<Longrightarrow> isDerivable \<J> \<phi> \<B>"
+(*| (* \<forall>-elimination rule *)
+FER: "\<lbrakk>
+  wfCPLInstance \<phi> \<B>;
+  wfJudgement \<J> \<phi> \<B>;
+  (let
+    \<psi> = (FoI (Index \<J>) (formulaToList \<phi>))
+  in
+    (isForall \<psi>) \<and>
+    (\<exists>\<J>'. (
+      (wfJudgement \<J>' \<phi> \<B>) \<and>
+      (\<psi> = (Forall (forall_x \<psi>) (FoI (Index \<J>') (formulaToList \<phi>)))) \<and>
+      (isDerivable \<J>' \<phi> \<B>) \<and>
+      (isDualProjection \<J> \<J>' \<phi> \<B>)
+    ))
+  )
+  \<rbrakk> \<Longrightarrow> isDerivable \<J> \<phi> \<B>" *)
+| (* Upward-flow rule *)
+UFR: "\<lbrakk>
+  wfCPLInstance \<phi> \<B>;
+  wfJudgement \<J> \<phi> \<B>;
+  (\<exists>\<J>'. (
+    (wfJudgement \<J>' \<phi> \<B>) \<and>
+    (isDerivable \<J>' \<phi> \<B>) \<and>
+    (isUpwardFlow \<J> \<J>' \<phi> \<B>)
+  ))
+  \<rbrakk> \<Longrightarrow> isDerivable \<J> \<phi> \<B>"
+
 (* ======================== Tests ======================== *)
 
 datatype BEnum = A | B | C (* Finite datatype *)
 
-lemma BEnum_induct: "x \<noteq> A \<Longrightarrow> x \<noteq> B \<Longrightarrow> x = C"
+lemma BEnum_induct: "\<lbrakk>x \<noteq> A; x \<noteq> B\<rbrakk> \<Longrightarrow> x = C"
   apply(cases x)
   by auto
 
@@ -121,16 +246,12 @@ lemma UNIV_BEnum: "UNIV = {A, B, C}"
 
 instantiation BEnum :: enum (* We must indicate that this type is an enum to use ran and dom *)
 begin
-
 definition "Enum.enum = [A,B,C]"
-
 definition "Enum.enum_all P \<longleftrightarrow> P A \<and> P B \<and> P C"
-
 definition "Enum.enum_ex P \<longleftrightarrow> P A \<or> P B \<or> P C"
 
 instance proof
 qed (auto simp add: enum_BEnum_def enum_all_BEnum_def enum_ex_BEnum_def UNIV_BEnum)
-
 end
 
 abbreviation "myUniverse::(BEnum set) \<equiv> {A,B,C}"
@@ -160,6 +281,9 @@ abbreviation "myValuationSet::(BEnum Valuation set) \<equiv> {
   [CHR ''x'' \<mapsto> A, CHR ''y'' \<mapsto> C],
   [CHR ''x'' \<mapsto> B, CHR ''y'' \<mapsto> A]
 }"
-abbreviation "myJudgement::(BEnum Judgement) \<equiv> (Judgement 6 {CHR ''x'', CHR ''y''} myValuationSet)"
+abbreviation "myFreeVariableSet::(Variable set) \<equiv> {CHR ''x'', CHR ''y''}"
+abbreviation "myJudgement::(BEnum Judgement) \<equiv> (Judgement 6 myFreeVariableSet myValuationSet)"
 
 value "wfJudgement myJudgement myFormula myStructure"
+
+end
