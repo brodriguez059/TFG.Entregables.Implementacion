@@ -58,7 +58,7 @@ datatype 'a Judgement =  Judgement (Index: "nat") (Vars:  "Variable set") (Funcs
 
 fun formulaToList :: "Formula \<Rightarrow> Formula list" where
 "formulaToList (Atom r var_list) = [Atom r var_list]" |
-"formulaToList (And \<phi>\<^sub>1 \<phi>\<^sub>2) = [And \<phi>\<^sub>1 \<phi>\<^sub>2] @ (formulaToList \<phi>\<^sub>1) @ (formulaToList \<phi>\<^sub>2)" |
+"formulaToList (And \<phi>\<^sub>1 \<phi>\<^sub>2) = [And \<phi>\<^sub>1 \<phi>\<^sub>2, \<phi>\<^sub>1, \<phi>\<^sub>2] @ (tl (formulaToList \<phi>\<^sub>1)) @ (tl (formulaToList \<phi>\<^sub>2))" |
 "formulaToList (Forall x \<phi>) = [Forall x \<phi>] @ (formulaToList \<phi>)" |
 "formulaToList (Exists x \<phi>) = [Exists x \<phi>] @ (formulaToList \<phi>)"
 
@@ -106,11 +106,11 @@ fun wfCPLInstance :: "Formula \<Rightarrow> 'a Structure \<Rightarrow> bool" whe
 
 fun wfJudgement :: "'a Judgement \<Rightarrow> Formula \<Rightarrow> 'a Structure \<Rightarrow> bool" where
 "wfJudgement \<J> \<phi> \<B> = (let
-  formula_list = formulaToList \<phi>;
-  judgement_index = (Index \<J>);
-  judgement_free_vars = (Vars \<J>);
-  judgement_valuations = (Funcs \<J>);
-  structure_domain = (Univ \<B>)
+    formula_list = formulaToList \<phi>;
+    judgement_index = (Index \<J>);
+    judgement_free_vars = (Vars \<J>);
+    judgement_valuations = (Funcs \<J>);
+    structure_domain = (Univ \<B>)
   in (
     ( wfCPLInstance \<phi> \<B> ) \<and>
     ( judgement_index \<in> (setOfIndex formula_list) ) \<and>
@@ -122,7 +122,7 @@ fun wfJudgement :: "'a Judgement \<Rightarrow> Formula \<Rightarrow> 'a Structur
 
 (* ================= Proof System Functions ================= *)
 
-(* TODO: Check if we can make this function work with Map functions *)
+(* TODO: Check if we can make this function work with HOL.Map functions *)
 fun projectValuation :: "'a Valuation \<Rightarrow> Variable set \<Rightarrow> 'a Valuation" where
 "projectValuation f V = (
   \<lambda>x. if V \<subseteq> (dom f) \<and> x \<in> V then f x else None
@@ -161,25 +161,24 @@ fun isUpwardFlow :: "'a Judgement \<Rightarrow> 'a Judgement \<Rightarrow> Formu
 
 (* ================= Proof System ================= *)
 
-inductive isDerivable :: "'a Judgement \<Rightarrow> Formula \<Rightarrow> 'a Structure \<Rightarrow> bool" where
+inductive isDerivable :: "Formula \<Rightarrow> 'a Structure \<Rightarrow> 'a Judgement \<Rightarrow> bool" for \<phi> and \<B> where
 (* Atom rule *)
 ATR: "\<lbrakk>
   wfCPLInstance \<phi> \<B>;
   wfJudgement \<J> \<phi> \<B>;
   (let
     \<psi> = (FoI (Index \<J>) (formulaToList \<phi>));
-    interpretation = (Interp \<B>);
-    V = (Vars \<J>)
+    interpretation = (Interp \<B>)
   in
     (isAtom \<psi>) \<and>
-    (V = (set (VarList \<psi>))) \<and>
+    ((Vars \<J>) = (set (VarList \<psi>))) \<and>
     (\<exists>set_of_list. (
         ((interpretation (Rel \<psi>)) = Some set_of_list) \<and>
         ((Funcs \<J>) = { buildValuation (VarList \<psi>) l | l. l \<in> set_of_list})
       )
     )
   )
-  \<rbrakk> \<Longrightarrow> isDerivable \<J> \<phi> \<B>"
+  \<rbrakk> \<Longrightarrow> isDerivable \<phi> \<B> \<J>"
 | (* Projection rule *)
 PJR: "\<lbrakk>
   wfCPLInstance \<phi> \<B>;
@@ -187,9 +186,9 @@ PJR: "\<lbrakk>
   (\<exists>\<J>'. (
     (wfJudgement \<J>' \<phi> \<B>) \<and>
     (isProjection \<J> \<J>' \<phi> \<B>) \<and>
-    (isDerivable \<J>' \<phi> \<B>)
+    (isDerivable \<phi> \<B> \<J>')
   ))
-  \<rbrakk> \<Longrightarrow> isDerivable \<J> \<phi> \<B>"
+  \<rbrakk> \<Longrightarrow> isDerivable \<phi> \<B> \<J>"
 | (* Join rule *)
 JNR: "\<lbrakk>
   wfCPLInstance \<phi> \<B>;
@@ -202,12 +201,12 @@ JNR: "\<lbrakk>
   (\<exists>\<J>\<^sub>0 \<J>\<^sub>1. (
     (wfJudgement \<J>\<^sub>0 \<phi> \<B> \<and> wfJudgement \<J>\<^sub>1 \<phi> \<B>) \<and>
     ((Index \<J>\<^sub>1) = (Index \<J>\<^sub>0)) \<and>
-    (isDerivable \<J>\<^sub>0 \<phi> \<B> \<and> isDerivable \<J>\<^sub>1 \<phi> \<B>) \<and>
+    (isDerivable \<phi> \<B> \<J>\<^sub>0 \<and> isDerivable \<phi> \<B> \<J>\<^sub>1) \<and>
     (isJoin \<J> \<J>\<^sub>0 \<J>\<^sub>1 \<phi> \<B>)
   ))
-  \<rbrakk> \<Longrightarrow> isDerivable \<J> \<phi> \<B>"
-(*| (* \<forall>-elimination rule *)
-FER: "\<lbrakk>
+  \<rbrakk> \<Longrightarrow> isDerivable \<phi> \<B> \<J>"
+| (* \<forall>-elimination rule *)
+(* FER: "\<lbrakk>
   wfCPLInstance \<phi> \<B>;
   wfJudgement \<J> \<phi> \<B>;
   (let
@@ -217,21 +216,21 @@ FER: "\<lbrakk>
     (\<exists>\<J>'. (
       (wfJudgement \<J>' \<phi> \<B>) \<and>
       (\<psi> = (Forall (forall_x \<psi>) (FoI (Index \<J>') (formulaToList \<phi>)))) \<and>
-      (isDerivable \<J>' \<phi> \<B>) \<and>
+      (isDerivable \<phi> \<B> \<J>') \<and>
       (isDualProjection \<J> \<J>' \<phi> \<B>)
     ))
   )
-  \<rbrakk> \<Longrightarrow> isDerivable \<J> \<phi> \<B>" *)
-| (* Upward-flow rule *)
+  \<rbrakk> \<Longrightarrow> isDerivable \<phi> \<B> \<J>"
+| (* Upward-flow rule *) *)
 UFR: "\<lbrakk>
   wfCPLInstance \<phi> \<B>;
   wfJudgement \<J> \<phi> \<B>;
   (\<exists>\<J>'. (
     (wfJudgement \<J>' \<phi> \<B>) \<and>
-    (isDerivable \<J>' \<phi> \<B>) \<and>
+    (isDerivable \<phi> \<B> \<J>') \<and>
     (isUpwardFlow \<J> \<J>' \<phi> \<B>)
   ))
-  \<rbrakk> \<Longrightarrow> isDerivable \<J> \<phi> \<B>"
+  \<rbrakk> \<Longrightarrow> isDerivable \<phi> \<B> \<J>"
 
 (* ======================== Tests ======================== *)
 
@@ -247,8 +246,8 @@ lemma UNIV_BEnum: "UNIV = {A, B, C}"
 instantiation BEnum :: enum (* We must indicate that this type is an enum to use ran and dom *)
 begin
 definition "Enum.enum = [A,B,C]"
-definition "Enum.enum_all P \<longleftrightarrow> P A \<and> P B \<and> P C"
-definition "Enum.enum_ex P \<longleftrightarrow> P A \<or> P B \<or> P C"
+definition "Enum.enum_all P \<longleftrightarrow> (Ball {A,B,C} P)"
+definition "Enum.enum_ex P \<longleftrightarrow> (Bex {A,B,C} P)"
 
 instance proof
 qed (auto simp add: enum_BEnum_def enum_all_BEnum_def enum_ex_BEnum_def UNIV_BEnum)
@@ -273,6 +272,8 @@ abbreviation "myFormula \<equiv> (
     )
   )
 )"
+
+value "formulaToList myFormula"
 
 value "wfFormula myFormula mySignature"
 
