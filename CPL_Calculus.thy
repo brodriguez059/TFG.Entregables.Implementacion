@@ -129,36 +129,7 @@ fun projectValuation :: "'a Valuation \<Rightarrow> Variable set \<Rightarrow> '
   True \<Rightarrow> f |` V
 )"
 
-(* TODO: Check how to make this with fun or at least make it generate code *)
-(*
-function allMaps :: "Variable set \<Rightarrow> 'a set \<Rightarrow> 'a Valuation set" where
-"allMaps keys values = (
-      if (keys = {}) then {Map.empty}
-      else (
-        let
-          k = (SOME x. x \<in> keys);
-          M = (allMaps (keys - {k}) values)
-        in (
-          { m(k \<mapsto> v) | m v. ( (v \<in> values) \<and> (m \<in> M) ) } 
-        )
-      )
-)"
-  by auto
-*)
-
-(*
-function allMaps :: "Variable set \<Rightarrow> 'a set \<Rightarrow> 'a Valuation set" where
-"allMaps keys values = (
-  if (keys = {}) then { Map.empty }
-  else (\<Union> {
-    {
-      m(k \<mapsto> v) | m v. v \<in> values \<and> m \<in> (allMaps (keys - {k}) values)
-    } | k. k \<in> keys
-  })
-)"
-  by auto
-*)
-
+(* Note: Explain why we use nat <the cardinaility of keys> here. The function can't work with set constructors*)
 fun allMaps :: "nat \<Rightarrow> Variable set \<Rightarrow> 'a set \<Rightarrow> 'a Valuation set" where
 "allMaps 0 keys values = { Map.empty }" |
 "allMaps n keys values = (\<Union> {
@@ -252,9 +223,21 @@ fun isJoin :: "'a Judgement \<Rightarrow> 'a Judgement \<Rightarrow> 'a Judgemen
 "isJoin \<J> \<J>\<^sub>1 \<J>\<^sub>2 \<phi> \<B> = (
   ( (wfJudgement \<J> \<phi> \<B>) \<and> (wfJudgement \<J>\<^sub>1 \<phi> \<B>) \<and> (wfJudgement \<J>\<^sub>2 \<phi> \<B>) ) \<and>
   ( (Vars \<J>) = ((Vars \<J>\<^sub>1) \<union> (Vars \<J>\<^sub>2)) ) \<and>
-  ( isFormulaAnd (FoI (Index \<J>) (formulaToList \<phi>))) \<and>
-  ( (isParent \<J> \<J>\<^sub>1 \<phi>) \<and> (isParent \<J> \<J>\<^sub>2 \<phi>) )
-)" (* TODO: Finish this function *)
+  ( isFormulaAnd (FoI (Index \<J>) (formulaToList \<phi>)) ) \<and>
+  ( (isParent \<J> \<J>\<^sub>1 \<phi>) \<and> (isParent \<J> \<J>\<^sub>2 \<phi>) ) \<and>
+  (
+    let
+      variables = (Vars \<J>\<^sub>1) \<union> (Vars \<J>\<^sub>2)
+    in (
+      {
+        f \<in> (allMaps (card variables) variables (Univ \<B>)). (
+          ( (projectValuation f (Vars \<J>\<^sub>1)) \<in> (Funcs \<J>\<^sub>1) ) \<and>
+          ( (projectValuation f (Vars \<J>\<^sub>2)) \<in> (Funcs \<J>\<^sub>2) )
+        )
+      } = (Funcs \<J>)
+    )
+  )
+)"
 
 fun isUpwardFlow :: "'a Judgement \<Rightarrow> 'a Judgement \<Rightarrow> Formula \<Rightarrow> 'a Structure \<Rightarrow> bool" where
 "isUpwardFlow \<J>\<^sub>1 \<J>\<^sub>2 \<phi> \<B> = (
@@ -282,15 +265,15 @@ PJR: "\<lbrakk>
     (isDerivable \<phi> \<B> \<J>')
   ))
   \<rbrakk> \<Longrightarrow> isDerivable \<phi> \<B> \<J>"
-(* | (* Join rule *)
+| (* Join rule *)
 JNR: "\<lbrakk>
   wfCPLInstance \<phi> \<B>;
   wfJudgement \<J> \<phi> \<B>;
   (\<exists>\<J>\<^sub>0 \<J>\<^sub>1. (
-    (isDerivable \<phi> \<B> \<J>\<^sub>0 \<and> isDerivable \<phi> \<B> \<J>\<^sub>1) \<and>
-    (isJoin \<J> \<J>\<^sub>0 \<J>\<^sub>1 \<phi> \<B>)
+    (isJoin \<J> \<J>\<^sub>0 \<J>\<^sub>1 \<phi> \<B>) \<and>
+    (isDerivable \<phi> \<B> \<J>\<^sub>0 \<and> isDerivable \<phi> \<B> \<J>\<^sub>1)
   ))
-  \<rbrakk> \<Longrightarrow> isDerivable \<phi> \<B> \<J>" *)
+  \<rbrakk> \<Longrightarrow> isDerivable \<phi> \<B> \<J>"
 | (* \<forall>-elimination rule *)
 FER: "\<lbrakk>
   wfCPLInstance \<phi> \<B>;
@@ -365,37 +348,64 @@ abbreviation "myValuationSet::(BEnum Valuation set) \<equiv> {
 abbreviation "myFreeVariableSet::(Variable set) \<equiv> {CHR ''x'', CHR ''y''}"
 abbreviation "myJudgement::(BEnum Judgement) \<equiv> (Judgement 6 myFreeVariableSet myValuationSet)"
 
-value "wfJudgement myJudgement myFormula myStructure"
 
+abbreviation "atomJudgement \<equiv> myJudgement"
 value "wfCPLInstance myFormula myStructure"
-value "wfJudgement myJudgement myFormula myStructure"
+value "wfJudgement atomJudgement myFormula myStructure"
+value "isAtom atomJudgement myFormula myStructure"
 
-value "isAtom myJudgement myFormula myStructure"
 
-abbreviation "mySecondJudgement::(BEnum Judgement) \<equiv> (Judgement 6 {CHR ''y''} {
+
+abbreviation "projectionBaseJudgement \<equiv> myJudgement"
+abbreviation "projectionProjectedJudgement::(BEnum Judgement) \<equiv> (Judgement 6 {CHR ''y''} {
   [CHR ''y'' \<mapsto> A],
   [CHR ''y'' \<mapsto> C]
 })"
-
 value "wfCPLInstance myFormula myStructure"
-value "wfJudgement mySecondJudgement myFormula myStructure"
-value "isProjection mySecondJudgement myJudgement myFormula myStructure"
+value "wfJudgement projectionBaseJudgement myFormula myStructure"
+value "wfJudgement projectionProjectedJudgement myFormula myStructure"
+value "isProjection projectionProjectedJudgement projectionBaseJudgement myFormula myStructure"
 
-abbreviation "myThirdJudgement::(BEnum Judgement) \<equiv> (Judgement 5 {CHR ''y''} {
+
+
+abbreviation "joinFirstChildJudgement::(BEnum Judgement) \<equiv> (Judgement 4 myFreeVariableSet myValuationSet)"
+abbreviation "joinSecondChildJudgement::(BEnum Judgement) \<equiv> (Judgement 5 {CHR ''y''} {
   [CHR ''y'' \<mapsto> A],
   [CHR ''y'' \<mapsto> C]
 })"
-
+abbreviation "joinParentJudgement::(BEnum Judgement) \<equiv> (Judgement 3 myFreeVariableSet {
+  [CHR ''x'' \<mapsto> A, CHR ''y'' \<mapsto> A],
+  [CHR ''x'' \<mapsto> A, CHR ''y'' \<mapsto> C],
+  [CHR ''x'' \<mapsto> B, CHR ''y'' \<mapsto> A]
+})"
 value "wfCPLInstance myFormula myStructure"
-value "wfJudgement myThirdJudgement myFormula myStructure"
-value "isUpwardFlow myThirdJudgement mySecondJudgement myFormula myStructure"
+value "wfJudgement joinFirstChildJudgement myFormula myStructure"
+value "wfJudgement joinSecondChildJudgement myFormula myStructure"
+value "wfJudgement joinParentJudgement myFormula myStructure"
+value "isJoin joinParentJudgement joinFirstChildJudgement joinSecondChildJudgement myFormula myStructure"
 
-abbreviation "myFourthJudgement::(BEnum Judgement) \<equiv> (Judgement 3 {CHR ''y''} {
+
+
+abbreviation "forAllBaseJudgement::(BEnum Judgement) \<equiv> (Judgement 3 {CHR ''y''} {
   [CHR ''y'' \<mapsto> A],
   [CHR ''y'' \<mapsto> C]
 })"
+abbreviation "forAllDualProjectedJudgement::(BEnum Judgement) \<equiv> (Judgement 2 {} {})"
+value "wfCPLInstance myFormula myStructure"
+value "wfJudgement forAllBaseJudgement myFormula myStructure"
+value "wfJudgement forAllDualProjectedJudgement myFormula myStructure"
+value "isDualProjection forAllDualProjectedJudgement forAllBaseJudgement myFormula myStructure"
 
-abbreviation "myFifthJudgement::(BEnum Judgement) \<equiv> (Judgement 2 {} {})"
-value "isDualProjection myFifthJudgement myFourthJudgement myFormula myStructure"
+
+
+abbreviation "upwardBaseJudgement \<equiv> projectionProjectedJudgement"
+abbreviation "upwardFlowedJudgement::(BEnum Judgement) \<equiv> (Judgement 5 {CHR ''y''} {
+  [CHR ''y'' \<mapsto> A],
+  [CHR ''y'' \<mapsto> C]
+})"
+value "wfCPLInstance myFormula myStructure"
+value "wfJudgement upwardBaseJudgement myFormula myStructure"
+value "wfJudgement upwardFlowedJudgement myFormula myStructure"
+value "isUpwardFlow upwardFlowedJudgement upwardBaseJudgement myFormula myStructure"
 
 end
