@@ -1,4 +1,4 @@
-theory "CPL_Calculus"
+theory "CPL_Calculus"        
   imports Main
 begin
 
@@ -6,7 +6,7 @@ begin
 
 (* ================= Type Definitions ================= *)
 
-(*TODO: Explain the caveats of using string. We will have to keep using char for now *)
+(* Note: Explain the caveats of using string. We will have to keep using char for now *)
 type_synonym Variable =  "char"
 type_synonym Relation =  "char"
 datatype Formula =
@@ -26,23 +26,23 @@ fun freeVar :: "Formula \<Rightarrow> Variable set" where
 fun sentence :: "Formula \<Rightarrow> bool" where
 "sentence \<phi> = ((freeVar \<phi>) = {})"
 
-fun isAtom :: "Formula \<Rightarrow> bool" where
-"isAtom (Atom r var_list) = True" |
-"isAtom (And \<phi>\<^sub>1 \<phi>\<^sub>2) = False" |
-"isAtom (Forall x \<phi>) = False" |
-"isAtom (Exists x \<phi>) = False"
+fun isFormulaAtom :: "Formula \<Rightarrow> bool" where
+"isFormulaAtom (Atom r var_list) = True" |
+"isFormulaAtom (And \<phi>\<^sub>1 \<phi>\<^sub>2) = False" |
+"isFormulaAtom (Forall x \<phi>) = False" |
+"isFormulaAtom (Exists x \<phi>) = False"
 
-fun isAnd :: "Formula \<Rightarrow> bool" where
-"isAnd (Atom r var_list) = False" |
-"isAnd (And \<phi>\<^sub>1 \<phi>\<^sub>2) = True" |
-"isAnd (Forall x \<phi>) = False" |
-"isAnd (Exists x \<phi>) = False"
+fun isFormulaAnd :: "Formula \<Rightarrow> bool" where
+"isFormulaAnd (Atom r var_list) = False" |
+"isFormulaAnd (And \<phi>\<^sub>1 \<phi>\<^sub>2) = True" |
+"isFormulaAnd (Forall x \<phi>) = False" |
+"isFormulaAnd (Exists x \<phi>) = False"
 
-fun isForall :: "Formula \<Rightarrow> bool" where
-"isForall (Atom r var_list) = False" |
-"isForall (And \<phi>\<^sub>1 \<phi>\<^sub>2) = False" |
-"isForall (Forall x \<phi>) = True" |
-"isForall (Exists x \<phi>) = False"
+fun isFormulaForAll :: "Formula \<Rightarrow> bool" where
+"isFormulaForAll (Atom r var_list) = False" |
+"isFormulaForAll (And \<phi>\<^sub>1 \<phi>\<^sub>2) = False" |
+"isFormulaForAll (Forall x \<phi>) = True" |
+"isFormulaForAll (Exists x \<phi>) = False"
 
 (* ======================== Semantics ======================== *)
 
@@ -80,7 +80,7 @@ fun wfFormula :: "Formula \<Rightarrow> Signature \<Rightarrow> bool" where
 "wfFormula (Forall x \<phi>) signature = (wfFormula \<phi> signature)" |
 "wfFormula (Exists x \<phi>) signature = (wfFormula \<phi> signature)"
 
-(* TODO: Explicar por qué añadimos (set l \<subseteq> universe) *)
+(* Note: Añadimos (set l \<subseteq> universe) para que se confirme que los datos pertenecen al dominio *)
 fun wfStructure :: "'a Structure \<Rightarrow> bool" where
 "wfStructure (Structure signature universe interpretation) = (
   ( universe \<noteq> {} )  \<and>
@@ -122,15 +122,98 @@ fun wfJudgement :: "'a Judgement \<Rightarrow> Formula \<Rightarrow> 'a Structur
 
 (* ================= Proof System Functions ================= *)
 
-(* TODO: Check if we can make this function work with HOL.Map functions *)
+(* Note: |` is called restrict_map operator. m |` A = (\<lambda>x. if x \<in> A then m x else None) *)
 fun projectValuation :: "'a Valuation \<Rightarrow> Variable set \<Rightarrow> 'a Valuation" where
-"projectValuation f V = (
-  \<lambda>x. if V \<subseteq> (dom f) \<and> x \<in> V then f x else None
+"projectValuation f V = (case (V \<subseteq> (dom f)) of
+  False \<Rightarrow> Map.empty |
+  True \<Rightarrow> f |` V
 )"
+
+(* TODO: Check how to make this with fun or at least make it generate code *)
+(*
+function allMaps :: "Variable set \<Rightarrow> 'a set \<Rightarrow> 'a Valuation set" where
+"allMaps keys values = (
+      if (keys = {}) then {Map.empty}
+      else (
+        let
+          k = (SOME x. x \<in> keys);
+          M = (allMaps (keys - {k}) values)
+        in (
+          { m(k \<mapsto> v) | m v. ( (v \<in> values) \<and> (m \<in> M) ) } 
+        )
+      )
+)"
+  by auto
+*)
+
+(*
+function allMaps :: "Variable set \<Rightarrow> 'a set \<Rightarrow> 'a Valuation set" where
+"allMaps keys values = (
+  if (keys = {}) then { Map.empty }
+  else (\<Union> {
+    {
+      m(k \<mapsto> v) | m v. v \<in> values \<and> m \<in> (allMaps (keys - {k}) values)
+    } | k. k \<in> keys
+  })
+)"
+  by auto
+*)
+
+fun allMaps :: "nat \<Rightarrow> Variable set \<Rightarrow> 'a set \<Rightarrow> 'a Valuation set" where
+"allMaps 0 keys values = { Map.empty }" |
+"allMaps n keys values = (\<Union> {
+    {
+      m(k \<mapsto> v) | m v. v \<in> values \<and> m \<in> (allMaps (n-1) (keys - {k}) values)
+    } | k. k \<in> keys
+  })"
 
 fun buildValuation :: "Variable list \<Rightarrow> 'a list \<Rightarrow> 'a Valuation"  where
 "buildValuation [] [] = Map.empty " |
 "buildValuation variables values = Map.empty (variables [\<mapsto>] values)"
+
+fun isParent :: "'a Judgement \<Rightarrow> 'a Judgement \<Rightarrow> Formula \<Rightarrow> bool" where
+"isParent \<J>\<^sub>1 \<J>\<^sub>2 \<phi> = (
+  let
+    formula_list = (formulaToList \<phi>);
+    \<psi>\<^sub>1 = (FoI (Index \<J>\<^sub>1) formula_list);
+    \<psi>\<^sub>2 = (FoI (Index \<J>\<^sub>2) formula_list)
+  in ( case (\<psi>\<^sub>1) of
+    (Atom r var_list) \<Rightarrow> False |
+    (Forall x \<phi>\<^sub>1) \<Rightarrow> (
+      ( (Index \<J>\<^sub>1) = (Index \<J>\<^sub>2) - 1 ) \<and>
+      (\<psi>\<^sub>2 = \<phi>\<^sub>1)
+    ) |
+    (Exists x \<phi>\<^sub>1) \<Rightarrow> (
+      ((Index \<J>\<^sub>1) = (Index \<J>\<^sub>2) - 1 ) \<and>
+      (\<psi>\<^sub>2 = \<phi>\<^sub>1)
+    ) |
+    (And \<phi>\<^sub>1 \<phi>\<^sub>2) \<Rightarrow> (
+      (
+        ( (Index \<J>\<^sub>1) = (Index \<J>\<^sub>2) - 1 ) \<and>
+        (\<psi>\<^sub>2 = \<phi>\<^sub>1)
+      ) \<or> (
+        ( (Index \<J>\<^sub>1) = (Index \<J>\<^sub>2) - 2 ) \<and>
+        (\<psi>\<^sub>2 = \<phi>\<^sub>2)
+      )
+    )
+  )
+)"
+
+fun isAtom :: "'a Judgement \<Rightarrow> Formula \<Rightarrow> 'a Structure \<Rightarrow> bool" where
+"isAtom \<J> \<phi> \<B> = (
+  let
+    \<psi> = (FoI (Index \<J>) (formulaToList \<phi>));
+    interpretation = (Interp \<B>)
+  in
+    (isFormulaAtom \<psi>) \<and>
+    ((Vars \<J>) = (set (VarList \<psi>))) \<and>
+    (case (interpretation (Rel \<psi>)) of
+      None \<Rightarrow> False |
+      Some set_of_list \<Rightarrow> (
+        (Funcs \<J>) = { buildValuation (VarList \<psi>) l | l. l \<in> set_of_list}
+      )
+    )
+)"
 
 fun isProjection :: "'a Judgement \<Rightarrow> 'a Judgement \<Rightarrow> Formula \<Rightarrow> 'a Structure \<Rightarrow> bool" where
 "isProjection \<J>\<^sub>1 \<J>\<^sub>2 \<phi> \<B> = (
@@ -141,23 +224,45 @@ fun isProjection :: "'a Judgement \<Rightarrow> 'a Judgement \<Rightarrow> Formu
 
 fun isDualProjection :: "'a Judgement \<Rightarrow> 'a Judgement \<Rightarrow> Formula \<Rightarrow> 'a Structure \<Rightarrow> bool" where
 "isDualProjection \<J>\<^sub>1 \<J>\<^sub>2 \<phi> \<B> = (
-  ( (wfJudgement \<J>\<^sub>1 \<phi> \<B>) \<and> (wfJudgement \<J>\<^sub>2 \<phi> \<B>) )
-)" (* TODO: Finish this function *)
+  ( (wfJudgement \<J>\<^sub>1 \<phi> \<B>) \<and> (wfJudgement \<J>\<^sub>2 \<phi> \<B>) ) \<and>
+  ( isParent \<J>\<^sub>1 \<J>\<^sub>2 \<phi> ) \<and>
+  (
+    let
+      formula_list = (formulaToList \<phi>);
+      \<psi>\<^sub>1 = (FoI (Index \<J>\<^sub>1) formula_list);
+      \<psi>\<^sub>2 = (FoI (Index \<J>\<^sub>2) formula_list);
+      y = (forall_x \<psi>\<^sub>1)
+    in (
+      ( isFormulaForAll \<psi>\<^sub>1 ) \<and>
+      ( \<psi>\<^sub>1 = (Forall y \<psi>\<^sub>2) ) \<and>
+      ( y \<in> (Vars \<J>\<^sub>2) )  \<and>
+      ( (Vars \<J>\<^sub>1) = (Vars \<J>\<^sub>2) - ({y}) )  \<and>
+      (
+        {
+          h \<in> (allMaps (card (Vars \<J>\<^sub>1)) (Vars \<J>\<^sub>1) (Univ \<B>)). (
+            \<forall>b \<in> (Univ \<B>). h(y \<mapsto> b) \<in> (Funcs \<J>\<^sub>2)
+          )
+        } = (Funcs \<J>\<^sub>1)
+      )
+    )
+  )
+)"
 
 fun isJoin :: "'a Judgement \<Rightarrow> 'a Judgement \<Rightarrow> 'a Judgement \<Rightarrow> Formula \<Rightarrow> 'a Structure \<Rightarrow> bool" where
 "isJoin \<J> \<J>\<^sub>1 \<J>\<^sub>2 \<phi> \<B> = (
-  (  (wfJudgement \<J> \<phi> \<B>) \<and> (wfJudgement \<J>\<^sub>1 \<phi> \<B>) \<and> (wfJudgement \<J>\<^sub>2 \<phi> \<B>) ) \<and>
-  ( ((Index \<J>) = (Index \<J>\<^sub>1)) \<and> ((Index \<J>\<^sub>1) = (Index \<J>\<^sub>2)) ) \<and>
-  ( ((Vars \<J>) = (Vars \<J>\<^sub>1)) \<and> ((Vars \<J>\<^sub>1) = (Vars \<J>\<^sub>2)) )
+  ( (wfJudgement \<J> \<phi> \<B>) \<and> (wfJudgement \<J>\<^sub>1 \<phi> \<B>) \<and> (wfJudgement \<J>\<^sub>2 \<phi> \<B>) ) \<and>
+  ( (Vars \<J>) = ((Vars \<J>\<^sub>1) \<union> (Vars \<J>\<^sub>2)) ) \<and>
+  ( isFormulaAnd (FoI (Index \<J>) (formulaToList \<phi>))) \<and>
+  ( (isParent \<J> \<J>\<^sub>1 \<phi>) \<and> (isParent \<J> \<J>\<^sub>2 \<phi>) )
 )" (* TODO: Finish this function *)
 
 fun isUpwardFlow :: "'a Judgement \<Rightarrow> 'a Judgement \<Rightarrow> Formula \<Rightarrow> 'a Structure \<Rightarrow> bool" where
 "isUpwardFlow \<J>\<^sub>1 \<J>\<^sub>2 \<phi> \<B> = (
-  ( (wfJudgement \<J>\<^sub>1 \<phi> \<B>) \<and> (wfJudgement \<J>\<^sub>2 \<phi> \<B>) ) \<and>
-  ( (Vars \<J>\<^sub>1) = (Vars \<J>\<^sub>2) ) \<and>
-  ( (Funcs \<J>\<^sub>1) = (Funcs \<J>\<^sub>2) ) \<and>
-  ( (Index \<J>\<^sub>1 + 1) = (Index \<J>\<^sub>2) )
-)" (* TODO: Fix this function, we cannot use Index J_1 + 1 to indicate the parent *)
+    ( (wfJudgement \<J>\<^sub>1 \<phi> \<B>) \<and> (wfJudgement \<J>\<^sub>2 \<phi> \<B>) ) \<and>
+    ( (Vars \<J>\<^sub>1) = (Vars \<J>\<^sub>2) ) \<and>
+    ( (Funcs \<J>\<^sub>1) = (Funcs \<J>\<^sub>2) ) \<and>
+    ( isParent \<J>\<^sub>1 \<J>\<^sub>2 \<phi> )
+)"
 
 (* ================= Proof System ================= *)
 
@@ -166,69 +271,43 @@ inductive isDerivable :: "Formula \<Rightarrow> 'a Structure \<Rightarrow> 'a Ju
 ATR: "\<lbrakk>
   wfCPLInstance \<phi> \<B>;
   wfJudgement \<J> \<phi> \<B>;
-  (let
-    \<psi> = (FoI (Index \<J>) (formulaToList \<phi>));
-    interpretation = (Interp \<B>)
-  in
-    (isAtom \<psi>) \<and>
-    ((Vars \<J>) = (set (VarList \<psi>))) \<and>
-    (\<exists>set_of_list. (
-        ((interpretation (Rel \<psi>)) = Some set_of_list) \<and>
-        ((Funcs \<J>) = { buildValuation (VarList \<psi>) l | l. l \<in> set_of_list})
-      )
-    )
-  )
+  isAtom \<J> \<phi> \<B>
   \<rbrakk> \<Longrightarrow> isDerivable \<phi> \<B> \<J>"
 | (* Projection rule *)
 PJR: "\<lbrakk>
   wfCPLInstance \<phi> \<B>;
   wfJudgement \<J> \<phi> \<B>;
   (\<exists>\<J>'. (
-    (wfJudgement \<J>' \<phi> \<B>) \<and>
     (isProjection \<J> \<J>' \<phi> \<B>) \<and>
     (isDerivable \<phi> \<B> \<J>')
   ))
   \<rbrakk> \<Longrightarrow> isDerivable \<phi> \<B> \<J>"
-| (* Join rule *)
+(* | (* Join rule *)
 JNR: "\<lbrakk>
   wfCPLInstance \<phi> \<B>;
   wfJudgement \<J> \<phi> \<B>;
-  (let
-    \<psi> = (FoI (Index \<J>) (formulaToList \<phi>))
-  in
-    (isAnd \<psi>)
-  );
   (\<exists>\<J>\<^sub>0 \<J>\<^sub>1. (
-    (wfJudgement \<J>\<^sub>0 \<phi> \<B> \<and> wfJudgement \<J>\<^sub>1 \<phi> \<B>) \<and>
-    ((Index \<J>\<^sub>1) = (Index \<J>\<^sub>0)) \<and>
     (isDerivable \<phi> \<B> \<J>\<^sub>0 \<and> isDerivable \<phi> \<B> \<J>\<^sub>1) \<and>
     (isJoin \<J> \<J>\<^sub>0 \<J>\<^sub>1 \<phi> \<B>)
   ))
-  \<rbrakk> \<Longrightarrow> isDerivable \<phi> \<B> \<J>"
+  \<rbrakk> \<Longrightarrow> isDerivable \<phi> \<B> \<J>" *)
 | (* \<forall>-elimination rule *)
-(* FER: "\<lbrakk>
+FER: "\<lbrakk>
   wfCPLInstance \<phi> \<B>;
   wfJudgement \<J> \<phi> \<B>;
-  (let
-    \<psi> = (FoI (Index \<J>) (formulaToList \<phi>))
-  in
-    (isForall \<psi>) \<and>
-    (\<exists>\<J>'. (
-      (wfJudgement \<J>' \<phi> \<B>) \<and>
-      (\<psi> = (Forall (forall_x \<psi>) (FoI (Index \<J>') (formulaToList \<phi>)))) \<and>
-      (isDerivable \<phi> \<B> \<J>') \<and>
-      (isDualProjection \<J> \<J>' \<phi> \<B>)
-    ))
+  (\<exists>\<J>'. (
+      (isDualProjection \<J> \<J>' \<phi> \<B>) \<and>
+      (isDerivable \<phi> \<B> \<J>')
+    )
   )
   \<rbrakk> \<Longrightarrow> isDerivable \<phi> \<B> \<J>"
-| (* Upward-flow rule *) *)
+| (* Upward-flow rule *)
 UFR: "\<lbrakk>
   wfCPLInstance \<phi> \<B>;
   wfJudgement \<J> \<phi> \<B>;
   (\<exists>\<J>'. (
-    (wfJudgement \<J>' \<phi> \<B>) \<and>
-    (isDerivable \<phi> \<B> \<J>') \<and>
-    (isUpwardFlow \<J> \<J>' \<phi> \<B>)
+    (isUpwardFlow \<J> \<J>' \<phi> \<B>) \<and>
+    (isDerivable \<phi> \<B> \<J>')
   ))
   \<rbrakk> \<Longrightarrow> isDerivable \<phi> \<B> \<J>"
 
@@ -243,7 +322,8 @@ lemma BEnum_induct: "\<lbrakk>x \<noteq> A; x \<noteq> B\<rbrakk> \<Longrightarr
 lemma UNIV_BEnum: "UNIV = {A, B, C}"
   by (auto simp add: BEnum_induct)
 
-instantiation BEnum :: enum (* We must indicate that this type is an enum to use ran and dom *)
+(* Note: We must indicate that this type is an enum to use ran and dom *)
+instantiation BEnum :: enum
 begin
 definition "Enum.enum = [A,B,C]"
 definition "Enum.enum_all P \<longleftrightarrow> (Ball {A,B,C} P)"
@@ -286,5 +366,36 @@ abbreviation "myFreeVariableSet::(Variable set) \<equiv> {CHR ''x'', CHR ''y''}"
 abbreviation "myJudgement::(BEnum Judgement) \<equiv> (Judgement 6 myFreeVariableSet myValuationSet)"
 
 value "wfJudgement myJudgement myFormula myStructure"
+
+value "wfCPLInstance myFormula myStructure"
+value "wfJudgement myJudgement myFormula myStructure"
+
+value "isAtom myJudgement myFormula myStructure"
+
+abbreviation "mySecondJudgement::(BEnum Judgement) \<equiv> (Judgement 6 {CHR ''y''} {
+  [CHR ''y'' \<mapsto> A],
+  [CHR ''y'' \<mapsto> C]
+})"
+
+value "wfCPLInstance myFormula myStructure"
+value "wfJudgement mySecondJudgement myFormula myStructure"
+value "isProjection mySecondJudgement myJudgement myFormula myStructure"
+
+abbreviation "myThirdJudgement::(BEnum Judgement) \<equiv> (Judgement 5 {CHR ''y''} {
+  [CHR ''y'' \<mapsto> A],
+  [CHR ''y'' \<mapsto> C]
+})"
+
+value "wfCPLInstance myFormula myStructure"
+value "wfJudgement myThirdJudgement myFormula myStructure"
+value "isUpwardFlow myThirdJudgement mySecondJudgement myFormula myStructure"
+
+abbreviation "myFourthJudgement::(BEnum Judgement) \<equiv> (Judgement 3 {CHR ''y''} {
+  [CHR ''y'' \<mapsto> A],
+  [CHR ''y'' \<mapsto> C]
+})"
+
+abbreviation "myFifthJudgement::(BEnum Judgement) \<equiv> (Judgement 2 {} {})"
+value "isDualProjection myFifthJudgement myFourthJudgement myFormula myStructure"
 
 end
