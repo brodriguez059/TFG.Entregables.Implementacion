@@ -15,10 +15,10 @@ fun isAtom :: "'a Judgement \<Rightarrow> Formula \<Rightarrow> 'a Structure \<R
     (case (interpretation (Rel \<psi>)) of
       None \<Rightarrow> False |
       Some set_of_list \<Rightarrow> (
-        (Funcs \<J>) = { buildValuation (VarList \<psi>) l | l. l \<in> set_of_list}
+        (Funcs \<J>) = { buildValuation (VarList \<psi>) l | l. l \<in> set_of_list }
       )
     )
-)"
+)" (* TODO: Escribirlo con allMaps para mantener consistencia *)
 
 fun isProjection :: "'a Judgement \<Rightarrow> 'a Judgement \<Rightarrow> Formula \<Rightarrow> 'a Structure \<Rightarrow> bool" where
 "isProjection \<J>\<^sub>1 \<J>\<^sub>2 \<phi> \<B> = (
