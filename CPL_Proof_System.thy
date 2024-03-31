@@ -18,7 +18,7 @@ fun isAtom :: "'a Judgement \<Rightarrow> Formula \<Rightarrow> 'a Structure \<R
         (Funcs \<J>) = { buildValuation (VarList \<psi>) l | l. l \<in> set_of_list }
       )
     )
-)" (* TODO: Escribirlo con allMaps para mantener consistencia *)
+)"
 
 fun isProjection :: "'a Judgement \<Rightarrow> 'a Judgement \<Rightarrow> Formula \<Rightarrow> 'a Structure \<Rightarrow> bool" where
 "isProjection \<J>\<^sub>1 \<J>\<^sub>2 \<phi> \<B> = (
@@ -127,6 +127,40 @@ UFR: "\<lbrakk>
     (isDerivable \<phi> \<B> \<J>')
   ))
   \<rbrakk> \<Longrightarrow> isDerivable \<phi> \<B> \<J>"
+
+fun isModel :: "'a Valuation \<Rightarrow> Formula \<Rightarrow> 'a Structure \<Rightarrow> bool" where
+"isModel f \<phi> \<B> = (
+  (wfStructure \<B>) \<and>
+  (wfFormula \<phi> (Sig \<B>)) \<and>
+  (ran f \<subseteq> (Univ \<B>)) \<and>
+  ((freeVar \<phi>) \<subseteq> (dom f)) \<and>
+  (case \<phi> of
+    (Atom r var_list) \<Rightarrow> (case (((Interp \<B>) r)) of 
+      None \<Rightarrow> False |
+      (Some set_of_list) \<Rightarrow> (
+        ((set var_list) \<subseteq> (dom f)) \<and>
+        ((HOmap f var_list) \<in> set_of_list)
+      )
+    ) |
+    (And \<psi>\<^sub>1 \<psi>\<^sub>2) \<Rightarrow> ((isModel f \<psi>\<^sub>1 \<B>) \<and> (isModel f \<psi>\<^sub>2 \<B>)) |
+    (Forall x \<psi>) \<Rightarrow> True \<or> (\<forall>v. v\<in>(Univ \<B>) \<longrightarrow> (isModel (f(x \<mapsto> v)) \<psi> \<B>))|
+    (Exists x \<psi>) \<Rightarrow> True \<or> (\<exists>v. v\<in>(Univ \<B>) \<and> (isModel (f(x \<mapsto> v)) \<psi> \<B>))
+  )
+)"
+
+fun isValuationModel :: "'a Valuation \<Rightarrow> 'a Judgement \<Rightarrow> Formula \<Rightarrow> 'a Structure \<Rightarrow> bool" where
+"isValuationModel f \<J> \<phi> \<B> = (
+  let
+    var_list = (Vars \<J>);
+    \<psi> = (FoI (Index \<J>) (formulaToList \<phi>))
+  in (
+    (f \<in> (allMaps (card var_list) var_list (Univ \<B>))) \<and>
+    (wfStructure \<B>) \<and>
+    (wfFormula \<phi> (Sig \<B>)) \<and>
+    (wfJudgement \<J> \<phi> \<B>) \<and>
+    (isModel f (existSq (setToList ((freeVar \<psi>) - (Vars \<J>))) \<psi>) \<B>)
+  )
+)"
 
 (* ======================== Tests ======================== *)
 
