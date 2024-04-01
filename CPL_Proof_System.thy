@@ -248,6 +248,26 @@ fun isValuationModel :: "'a Valuation \<Rightarrow> 'a Judgement \<Rightarrow> F
   )
 )"
 
+inductive models :: "Formula \<Rightarrow> 'a Structure \<Rightarrow> 'a Judgement \<Rightarrow> bool" for \<phi> and \<B> where
+(* Atom rule *)
+ATR: "\<lbrakk>
+  wfCPLInstance \<phi> \<B>;
+  wfJudgement \<J> \<phi> \<B>;
+  isAtom \<J> \<phi> \<B>;
+  isDerivable \<phi> \<B> \<J>
+  \<rbrakk> \<Longrightarrow> models \<phi> \<B> \<J>" (* TODO: Cambiar esta regla para que sea correcta *)
+| (* Projection rule *)
+PJR: "\<lbrakk>
+  wfCPLInstance \<phi> \<B>;
+  wfJudgement \<J> \<phi> \<B>;
+  (\<exists>\<J>'. (
+    (isProjection \<J> \<J>' \<phi> \<B>) \<and>
+    (isDerivable \<phi> \<B> \<J>')
+  ));
+  isDerivable \<phi> \<B> \<J>
+  \<rbrakk> \<Longrightarrow> models \<phi> \<B> \<J>" (* TODO: Cambiar esta regla para que sea correcta *)
+
+
 (* ======================== Tests ======================== *)
 
 lemma "existSq {CHR ''x''} atomFormula = (Exists (CHR ''x'') atomFormula)"
