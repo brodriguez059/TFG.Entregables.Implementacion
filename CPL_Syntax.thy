@@ -7,7 +7,7 @@ begin
 (* ======================== Type Definitions ======================== *)
 
 (* Note: Explain the caveats of using string. We will have to keep using char for now *)
-type_synonym Variable =  "char"
+type_synonym Variable =  "char" (* TODO: Check if we can change it to "instance of Enum" *)
 type_synonym Relation =  "char"
 datatype Formula =
 Atom (atom_rel: "Relation") (atom_vars: "Variable list") |

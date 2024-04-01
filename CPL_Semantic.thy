@@ -116,8 +116,6 @@ abbreviation "myFreeVariableSet::(Variable set) \<equiv> {CHR ''x'', CHR ''y''}"
 abbreviation "myJudgement::(BEnum Judgement) \<equiv> (Judgement 6 myFreeVariableSet myValuationSet)"
 
 lemma "wfJudgement myJudgement myFormula myStructure = True"
-  apply(simp_all)
-  apply(simp add: Let_def)
-  by auto
+  by(auto simp add: Let_def)
 
 end

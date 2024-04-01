@@ -271,8 +271,7 @@ PJR: "\<lbrakk>
 (* ======================== Tests ======================== *)
 
 lemma "existSq {CHR ''x''} atomFormula = (Exists (CHR ''x'') atomFormula)"
-  apply (auto)
-  by (simp add: Let_def)
+  by (auto simp add: Let_def)
 
 
 
@@ -304,16 +303,13 @@ lemma "wfCPLInstance myFormula myStructure = True"
   by auto
 
 lemma "wfJudgement projectionBaseJudgement myFormula myStructure = True"
-  apply(simp add: Let_def)
-  by auto
+  by (auto simp add: Let_def)
 
 lemma "wfJudgement projectionProjectedJudgement myFormula myStructure = True"
-  apply(simp add: Let_def)
-  by auto
+  by (auto simp add: Let_def)
 
 lemma "isProjection projectionProjectedJudgement projectionBaseJudgement myFormula myStructure = True"
-  apply(simp_all add: Let_def)
-  apply(auto)
+  apply(auto simp add: Let_def)
   apply (smt (verit, ccfv_threshold) domIff dom_eq_empty_conv dom_restrict fun_upd_same inf_bot_right option.simps(3) restrict_map_insert)
   apply (smt (verit, ccfv_threshold) domIff dom_eq_empty_conv dom_restrict fun_upd_same inf_bot_right option.simps(3) restrict_map_insert)
   done
@@ -334,31 +330,28 @@ lemma "wfCPLInstance myFormula myStructure = True"
   by auto
 
 lemma "wfJudgement joinFirstChildJudgement myFormula myStructure = True"
-  apply(simp add: Let_def)
-  by auto
+  by (auto simp add: Let_def)
 
 lemma "wfJudgement joinSecondChildJudgement myFormula myStructure = True"
-  apply(simp add: Let_def)
-  by auto
+  by (auto simp add: Let_def)
 
 lemma "wfJudgement joinParentJudgement myFormula myStructure = True"
-  apply(simp add: Let_def)
-  by auto
+  by (auto simp add: Let_def)
 
 lemma [simp] : "myFreeVariableSet - {CHR ''y''} \<subseteq> {CHR ''x''}"
   by auto
 lemma [simp] : "{CHR ''y'', CHR ''x''} = myFreeVariableSet"
   by(auto)
-lemma [simp] : "x\<in>S \<Longrightarrow> S = insert x S"
-  by auto
 lemma [simp] : "insert (CHR ''y'') myFreeVariableSet = myFreeVariableSet"
+  by auto
+lemma [simp] : "x\<in>S \<Longrightarrow> S = insert x S"
   by auto
 lemma [simp] : "mapping \<noteq> Map.empty \<Longrightarrow> (\<lambda>x. None) \<noteq> mapping" (* Note: This needs to be explicit because Map.empty \<equiv> (\<lambda>x. None) is an abbreviation *)
   by auto
-(*
+
+(* TODO: Fix this lemma
 lemma "isJoin joinParentJudgement joinFirstChildJudgement joinSecondChildJudgement myFormula myStructure = True"
-  apply(simp_all add: Let_def)
-  apply(auto)
+  apply(auto simp add: Let_def)
   done
 *)
 
