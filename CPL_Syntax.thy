@@ -6,9 +6,10 @@ begin
 
 (* ======================== Type Definitions ======================== *)
 
-(* Note: Explain the caveats of using string. We will have to keep using char for now *)
-type_synonym 'a Enumerable =  "'a::enum" (* It is possible to define types that must implement a class using this syntax *)
-type_synonym Variable =  "char Enumerable"
+type_synonym 'a Enumerable =  "'a::enum" \<comment>
+ \<open>Note: It is possible to define types that must implement a class using this syntax\<close>
+type_synonym Variable =  "char Enumerable" \<comment>
+ \<open>Note: Explain the caveats of using string. We will have to keep using char for now\<close>
 type_synonym Relation =  "char Enumerable"
 datatype Formula =
 Atom (atom_rel: "Relation") (atom_vars: "Variable list") |
@@ -56,8 +57,8 @@ lemma BEnum_induct: "\<lbrakk>x \<noteq> A; x \<noteq> B\<rbrakk> \<Longrightarr
 lemma UNIV_BEnum: "UNIV = {A, B, C}"
   by (auto simp add: BEnum_induct)
 
-(* Note: We must indicate that this type is an enum to use ran and dom *)
-instantiation BEnum :: enum
+instantiation BEnum :: enum \<comment>
+ \<open> Note: We must indicate that this type is an enum to use ran and dom \<close>
 begin
   definition "Enum.enum = [A,B,C]"
   definition "Enum.enum_all P \<longleftrightarrow> (Ball {A,B,C} P)"
