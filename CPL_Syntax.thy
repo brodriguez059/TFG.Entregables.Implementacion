@@ -1,5 +1,5 @@
 theory "CPL_Syntax"
-  imports Main
+  imports Main HOL.Enum
 begin
 
 (* ==================== Syntax ==================== *)
@@ -7,8 +7,9 @@ begin
 (* ======================== Type Definitions ======================== *)
 
 (* Note: Explain the caveats of using string. We will have to keep using char for now *)
-type_synonym Variable =  "char" (* TODO: Check if we can change it to "instance of Enum" *)
-type_synonym Relation =  "char"
+type_synonym 'a Enumerable =  "'a::enum" (* It is possible to define types that must implement a class using this syntax *)
+type_synonym Variable =  "char Enumerable"
+type_synonym Relation =  "char Enumerable"
 datatype Formula =
 Atom (atom_rel: "Relation") (atom_vars: "Variable list") |
 And (and_f1: "Formula") (and_f2: "Formula") |
