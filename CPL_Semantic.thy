@@ -6,12 +6,12 @@ begin
 
 (* ======================== Type Definitions ======================== *)
 
-type_synonym Signature =  "Relation \<rightharpoonup> nat" (* Represented by \<S> *)
-type_synonym 'a Interpretation = "Relation \<rightharpoonup> 'a list set" (* Represented by \<I> *)
-datatype 'a Structure =  Structure (Sig: "Signature") (Univ: "'a set")  (Interp: "'a Interpretation") (* Represented by \<B>, and internally by \<S> universe \<I> *)
+type_synonym Signature =  "Relation \<rightharpoonup> nat" \<comment> \<open> Represented by \<S> \<close>
+type_synonym 'a Interpretation = "Relation \<rightharpoonup> 'a list set" \<comment> \<open> Represented by \<I> \<close>
+datatype 'a Structure =  Structure (Sig: "Signature") (Univ: "'a set")  (Interp: "'a Interpretation") \<comment> \<open> Represented by \<B>, and internally by \<S> universe \<I> \<close>
 
-type_synonym 'a Valuation = "Variable \<rightharpoonup> 'a" (* Represented by f *)
-datatype 'a Judgement =  Judgement (Index: "nat") (Vars:  "Variable set") (Funcs:  "'a Valuation set") (* Represented by \<J>, and internally by index \<V> \<F> *)
+type_synonym 'a Valuation = "Variable \<rightharpoonup> 'a" \<comment> \<open> Represented by f \<close>
+datatype 'a Judgement =  Judgement (Index: "nat") (Vars:  "Variable set") (Funcs:  "'a Valuation set") \<comment> \<open> Represented by \<J>, and internally by index \<V> \<F> \<close>
 
 (* ======================== Auxiliary Functions ======================== *)
 
@@ -39,7 +39,7 @@ fun wfFormula :: "Formula \<Rightarrow> Signature \<Rightarrow> bool" where
 "wfFormula (Forall x \<phi>) \<S> = (wfFormula \<phi> \<S>)" |
 "wfFormula (Exists x \<phi>) \<S> = (wfFormula \<phi> \<S>)"
 
-(* Note: Añadimos (set l \<subseteq> universe) para que se confirme que los datos pertenecen al dominio *)
+
 fun wfStructure :: "'a Structure \<Rightarrow> bool" where
 "wfStructure (Structure \<S> universe \<I>) = (
   ( universe \<noteq> {} )  \<and>
@@ -48,7 +48,7 @@ fun wfStructure :: "'a Structure \<Rightarrow> bool" where
       None \<Rightarrow> False |
       (Some set_of_lists) \<Rightarrow> (case (\<S> r) of
          None \<Rightarrow> False |
-         (Some n) \<Rightarrow> (\<forall>l \<in> set_of_lists. ((length l) = n) \<and> ((set l) \<subseteq> universe))
+         (Some n) \<Rightarrow> (\<forall>l \<in> set_of_lists. ((length l) = n) \<and> ((set l) \<subseteq> universe)) \<comment> \<open> Note: Añadimos (set l \<subseteq> universe) para que se confirme que los datos pertenecen al dominio \<close>
       )
     )
   )
@@ -104,8 +104,6 @@ abbreviation "myStructure::(BEnum Structure) \<equiv> (Structure mySignature myU
 
 lemma "wfStructure myStructure = True"
   by auto
-
-
 
 abbreviation "myValuationSet::(BEnum Valuation set) \<equiv> {
   [CHR ''x'' \<mapsto> A, CHR ''y'' \<mapsto> A],

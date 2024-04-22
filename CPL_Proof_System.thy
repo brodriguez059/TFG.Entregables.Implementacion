@@ -1,34 +1,72 @@
 theory "CPL_Proof_System"
-  imports Main "CPL_Syntax" "CPL_Semantic"
+  imports Main "CPL_Syntax" "CPL_Semantic" HOL.Set
 begin
 
 (* ================= Auxiliary Functions ================= *)
 
-(* Note: Explain why we use nat <the cardinality of keys> here. The function can't work with set constructors*)
-function allMaps :: "Variable set \<Rightarrow> 'a set \<Rightarrow> 'a Valuation set" where
-"allMaps keys values = (if ((card keys) > 0)
-  then (
-    let
-      k = (SOME x. x \<in> keys);
-      reduced_keys = (keys - {k})
+function allMaps :: "Variable set \<Rightarrow> 'a set \<Rightarrow> 'a Valuation set" where \<comment> \<open> Note: Explain why we use nat <the cardinality of keys> here. The function can't work with set constructors \<close>
+"((card keys) = 0) \<and> ((card values) = 0) \<Longrightarrow> allMaps keys values = {}" |
+"((card keys) > 0) \<and> ((card values) = 0) \<Longrightarrow> allMaps keys values = {}" |
+"((card keys) = 0) \<and> ((card values) > 0) \<Longrightarrow> allMaps keys values = { Map.empty }" |
+"((card keys) > 0) \<and> ((card values) > 0) \<Longrightarrow> allMaps keys values = (let
+      k = (SOME x. x \<in> keys)
     in (
       {
-        m(k \<mapsto> v) | m v. v \<in> values \<and> m \<in> (allMaps reduced_keys values)
+        m(k \<mapsto> v) | m v. v \<in> values \<and> m \<in> (allMaps (keys - {k}) values)
       }
     )
-  )
-  else { Map.empty }
 )"
+  apply auto
+  by (metis bot_nat_0.not_eq_extremum card_eq_0_iff finite)
+termination allMaps
+  apply (relation "measures [\<lambda>(keys, _). card keys]")
+  apply(auto)
+  by (simp add: card_gt_0_iff some_in_eq)
+
+lemma [simp] : "allMaps keys empty = {}"
+  apply(rule allMaps.cases)
+  apply(auto)
+  using allMaps.simps(1) card.empty apply blast
+  using allMaps.simps(2) card.empty by blast
+
+lemma allMaps0 [simp] : "(card values) > 0 \<Longrightarrow> allMaps empty values = { Map.empty }"
   by auto
 
+lemma [simp] : "Map.empty ++ [x \<mapsto> v] = [x \<mapsto> v]"
+  by auto
+
+(*
+theorem allMapsInduction :
+  fixes vals :: "'a set" and keys :: "char set" and x :: "char"
+  assumes "(card vals) > 0" and "x \<notin> keys"
+  shows "(allMaps (keys \<union> {x}) vals) = {
+    m(x \<mapsto> v) | m v. v \<in> vals \<and> m \<in> (allMaps keys vals)
+  }" (is "?A keys x = ?S keys x") using \<open>(card vals) > 0\<close> and \<open>x \<notin> keys\<close>
+proof -
+  show "?A keys x = ?S keys x"
+  proof (induct "card keys" arbitrary: x)
+    case 0 \<comment> \<open>Case 0: keys is empty set\<close>
+    let ?unitMappings = "{ [x \<mapsto> v] | v. v \<in> vals }"
+    have emptySet: "keys = {}" using "0" by auto
+    hence caseABase: "?A keys x = ?unitMappings" using assms(1) by auto
+    have allMapsBase: "(allMaps keys vals) = { Map.empty } " using "0" by (simp add: assms(1))
+    hence caseSBase: "?S keys x = ?unitMappings" by force
+    show "?A keys x = ?S keys x" using caseABase caseSBase by auto
+  next
+    case (Suc n) \<comment> \<open>Case N: keys is not the empty set\<close>
+    assume IH: "\<And>x. n = (card keys) \<Longrightarrow> ((card vals) > 0 \<and> x \<notin> keys) \<Longrightarrow> (?A keys x = ?S keys x)"
+    have notEmptySet: "keys \<notin> {}" by simp
+    show "?A keys x = ?S keys x"
+  qed
+qed
+*)
 fun HOmap :: "'a Valuation \<Rightarrow> Variable list \<Rightarrow> 'a list" where
 "HOmap f var_list = (if ((set var_list) \<subseteq> (dom f))
   then [the (f v). v \<leftarrow> var_list]
   else []
 )"
 
-(* Note: |` is called restrict_map operator. m |` A = (\<lambda>x. if x \<in> A then m x else None) *)
-fun projectValuation :: "'a Valuation \<Rightarrow> Variable set \<Rightarrow> 'a Valuation" where
+fun projectValuation :: "'a Valuation \<Rightarrow> Variable set \<Rightarrow> 'a Valuation" where \<comment> \<open>  Note: |` is called restrict_map operator. m |` A = (\<lambda>x. if x \<in> A then m x else None)  \<close>
 "projectValuation f V = (if (V \<subseteq> (dom f))
   then f |` V
   else Map.empty
@@ -84,7 +122,7 @@ function existSq :: "Variable set \<Rightarrow> Formula \<Rightarrow> Formula" w
   by auto
 
 termination existSq
-  apply (relation "measures [\<lambda>(vars, \<phi>). card vars]")
+  apply (relation "measures [\<lambda>(vars, _). card vars]")
   apply(auto)
   by (simp add: card_gt_0_iff some_in_eq)
 
@@ -169,22 +207,21 @@ fun isUpwardFlow :: "'a Judgement \<Rightarrow> 'a Judgement \<Rightarrow> Formu
 (* ================= Proof System ================= *)
 
 inductive isDerivable :: "Formula \<Rightarrow> 'a Structure \<Rightarrow> 'a Judgement \<Rightarrow> bool" for \<phi> and \<B> where
-(* Atom rule *)
-ATR: "\<lbrakk>
+ATR: "\<lbrakk> \<comment> \<open>  Atom rule  \<close>
   wfCPLInstance \<phi> \<B>;
   wfJudgement \<J> \<phi> \<B>;
   isAtom \<J> \<phi> \<B>
   \<rbrakk> \<Longrightarrow> isDerivable \<phi> \<B> \<J>"
-| (* Projection rule *)
+| \<comment> \<open>  Projection rule  \<close>
 PJR: "\<lbrakk>
   wfCPLInstance \<phi> \<B>;
   wfJudgement \<J> \<phi> \<B>;
   (\<exists>\<J>'. (
-    (isProjection \<J> \<J>' \<phi> \<B>) \<and>
-    (isDerivable \<phi> \<B> \<J>')
+    (isDerivable \<phi> \<B> \<J>') \<and>
+    (isProjection \<J> \<J>' \<phi> \<B>) 
   ))
   \<rbrakk> \<Longrightarrow> isDerivable \<phi> \<B> \<J>"
-| (* Join rule *)
+| \<comment> \<open>  Join rule  \<close>
 JNR: "\<lbrakk>
   wfCPLInstance \<phi> \<B>;
   wfJudgement \<J> \<phi> \<B>;
@@ -193,7 +230,7 @@ JNR: "\<lbrakk>
     (isDerivable \<phi> \<B> \<J>\<^sub>0 \<and> isDerivable \<phi> \<B> \<J>\<^sub>1)
   ))
   \<rbrakk> \<Longrightarrow> isDerivable \<phi> \<B> \<J>"
-| (* \<forall>-elimination rule *)
+| \<comment> \<open>  \<forall>-elimination rule  \<close>
 FER: "\<lbrakk>
   wfCPLInstance \<phi> \<B>;
   wfJudgement \<J> \<phi> \<B>;
@@ -203,7 +240,7 @@ FER: "\<lbrakk>
     )
   )
   \<rbrakk> \<Longrightarrow> isDerivable \<phi> \<B> \<J>"
-| (* Upward-flow rule *)
+| \<comment> \<open>  Upward-flow rule  \<close>
 UFR: "\<lbrakk>
   wfCPLInstance \<phi> \<B>;
   wfJudgement \<J> \<phi> \<B>;
@@ -249,14 +286,13 @@ fun isValuationModel :: "'a Valuation \<Rightarrow> 'a Judgement \<Rightarrow> F
 )"
 
 inductive models :: "Formula \<Rightarrow> 'a Structure \<Rightarrow> 'a Judgement \<Rightarrow> bool" for \<phi> and \<B> where
-(* Atom rule *)
-ATR: "\<lbrakk>
+ATR: "\<lbrakk> \<comment> \<open>  Atom rule  \<close>
   wfCPLInstance \<phi> \<B>;
   wfJudgement \<J> \<phi> \<B>;
   isAtom \<J> \<phi> \<B>;
   isDerivable \<phi> \<B> \<J>
-  \<rbrakk> \<Longrightarrow> models \<phi> \<B> \<J>" (* TODO: Cambiar esta regla para que sea correcta *)
-| (* Projection rule *)
+  \<rbrakk> \<Longrightarrow> models \<phi> \<B> \<J>" \<comment> \<open>  TODO: Cambiar esta regla para que sea correcta  \<close>
+| \<comment> \<open>  Projection rule  \<close>
 PJR: "\<lbrakk>
   wfCPLInstance \<phi> \<B>;
   wfJudgement \<J> \<phi> \<B>;
@@ -265,7 +301,7 @@ PJR: "\<lbrakk>
     (isDerivable \<phi> \<B> \<J>')
   ));
   isDerivable \<phi> \<B> \<J>
-  \<rbrakk> \<Longrightarrow> models \<phi> \<B> \<J>" (* TODO: Cambiar esta regla para que sea correcta *)
+  \<rbrakk> \<Longrightarrow> models \<phi> \<B> \<J>" \<comment> \<open>  TODO: Cambiar esta regla para que sea correcta  \<close>
 
 
 (* ======================== Tests ======================== *)
@@ -346,16 +382,15 @@ lemma [simp] : "insert (CHR ''y'') myFreeVariableSet = myFreeVariableSet"
   by auto
 lemma [simp] : "x\<in>S \<Longrightarrow> S = insert x S"
   by auto
-lemma [simp] : "mapping \<noteq> Map.empty \<Longrightarrow> (\<lambda>x. None) \<noteq> mapping" (* Note: This needs to be explicit because Map.empty \<equiv> (\<lambda>x. None) is an abbreviation *)
+lemma [simp] : "mapping \<noteq> Map.empty \<Longrightarrow> (\<lambda>x. None) \<noteq> mapping" \<comment> \<open>  Note: This needs to be explicit because Map.empty \<equiv> (\<lambda>x. None) is an abbreviation  \<close>
   by auto
 
-(* TODO: Fix this lemma
+(*
 lemma "isJoin joinParentJudgement joinFirstChildJudgement joinSecondChildJudgement myFormula myStructure = True"
-  apply(auto simp add: Let_def)
+  apply(simp_all)
+  apply(simp)
   done
 *)
-
-
 
 abbreviation "forAllBaseJudgement::(BEnum Judgement) \<equiv> (Judgement 3 {CHR ''y''} {
   [CHR ''y'' \<mapsto> A],
@@ -374,12 +409,6 @@ lemma "wfJudgement forAllDualProjectedJudgement myFormula myStructure = True"
 lemma "isDualProjection forAllDualProjectedJudgement forAllBaseJudgement myFormula myStructure = True"
   apply(simp_all add: Let_def)
   apply(auto)
-  apply(meson BEnum.simps map_upd_eqD1)
-  apply(meson BEnum.simps map_upd_eqD1)
-  apply(meson BEnum.simps map_upd_eqD1)
-  apply(meson BEnum.simps map_upd_eqD1)
-  apply(meson BEnum.simps map_upd_eqD1)
-  apply(meson BEnum.simps map_upd_eqD1)
   apply(meson BEnum.simps map_upd_eqD1)
   by(meson BEnum.simps map_upd_eqD1)
 
