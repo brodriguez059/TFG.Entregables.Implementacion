@@ -23,7 +23,9 @@ termination allMaps
   apply(auto)
   by (simp add: card_gt_0_iff some_in_eq)
 
-lemma [simp] : "allMaps keys empty = {}"
+print_theorems
+
+lemma [simp] : "allMaps keys {} = {}"
   apply(rule allMaps.cases)
   apply(auto)
   using allMaps.simps(1) card.empty apply blast
@@ -32,34 +34,50 @@ lemma [simp] : "allMaps keys empty = {}"
 lemma allMaps0 [simp] : "(card values) > 0 \<Longrightarrow> allMaps empty values = { Map.empty }"
   by auto
 
-lemma [simp] : "Map.empty ++ [x \<mapsto> v] = [x \<mapsto> v]"
+lemma allMaps1 [simp] : "(card values) > 0 \<Longrightarrow> allMaps {x} values = { [x \<mapsto> v] | v. v \<in> values }"
   by auto
 
-(*
+
 theorem allMapsInduction :
-  fixes vals :: "'a set" and keys :: "char set" and x :: "char"
-  assumes "(card vals) > 0" and "x \<notin> keys"
-  shows "(allMaps (keys \<union> {x}) vals) = {
+  fixes vals :: "'a set"
+  fixes keys :: "char set"
+  fixes x :: "char"
+  assumes "(card vals) > 0"
+  assumes "x \<notin> keys"
+  shows "{
     m(x \<mapsto> v) | m v. v \<in> vals \<and> m \<in> (allMaps keys vals)
-  }" (is "?A keys x = ?S keys x") using \<open>(card vals) > 0\<close> and \<open>x \<notin> keys\<close>
+  } = (allMaps (keys \<union> {x}) vals)" (is "?S keys x = ?A keys x")
+    using assms(1) and assms(2)
 proof -
-  show "?A keys x = ?S keys x"
-  proof (induct "card keys" arbitrary: x)
+  show "?S keys x = ?A keys x"
+  proof (induct "card keys")
     case 0 \<comment> \<open>Case 0: keys is empty set\<close>
-    let ?unitMappings = "{ [x \<mapsto> v] | v. v \<in> vals }"
-    have emptySet: "keys = {}" using "0" by auto
-    hence caseABase: "?A keys x = ?unitMappings" using assms(1) by auto
-    have allMapsBase: "(allMaps keys vals) = { Map.empty } " using "0" by (simp add: assms(1))
-    hence caseSBase: "?S keys x = ?unitMappings" by force
-    show "?A keys x = ?S keys x" using caseABase caseSBase by auto
+    let ?unitMapping = "{ [x \<mapsto> v] | v. v \<in> vals }"
+    have empty_keys: "keys={}" using "0" by auto
+    have unit_s: "?S keys x = ?unitMapping" using empty_keys assms(1) by force
+    have unit_a: "?A keys x = ?unitMapping" using empty_keys assms(1) by auto
+    thus "?S keys x = ?A keys x" using unit_s unit_a by auto
   next
     case (Suc n) \<comment> \<open>Case N: keys is not the empty set\<close>
-    assume IH: "\<And>x. n = (card keys) \<Longrightarrow> ((card vals) > 0 \<and> x \<notin> keys) \<Longrightarrow> (?A keys x = ?S keys x)"
+    fix keys' :: "char set"
+    fix y :: "char"
+    obtain y where y_selection: "y = (SOME z. z \<in> keys)" by blast
+    assume key_prime: "keys' = keys - {y}"
+    assume IH: "?S keys' y = ?A keys' y"
     have notEmptySet: "keys \<notin> {}" by simp
-    show "?A keys x = ?S keys x"
+    have key_reconstruct: "keys = keys'\<union>{y}" using Suc(2) key_prime some_in_eq y_selection by fastforce
+    let ?mappings = "(allMaps keys vals)"
+    have "?mappings = ?A keys' y" using key_reconstruct by force
+    have "?mappings = ?S keys' y" using IH key_reconstruct by auto
+    have "?S keys x = {
+      m(x \<mapsto> v) | m v. v \<in> vals \<and> m \<in> ?mappings
+    }" by blast
+    have "?A keys x = ?A (keys'\<union>{y}) x" using key_reconstruct by auto
+    thus "?S keys x = ?A keys x"
   qed
 qed
-*)
+
+
 fun HOmap :: "'a Valuation \<Rightarrow> Variable list \<Rightarrow> 'a list" where
 "HOmap f var_list = (if ((set var_list) \<subseteq> (dom f))
   then [the (f v). v \<leftarrow> var_list]
@@ -71,6 +89,50 @@ fun projectValuation :: "'a Valuation \<Rightarrow> Variable set \<Rightarrow> '
   then f |` V
   else Map.empty
 )"
+
+lemma projected_valuation_does_not_include_excluded_variables [simp] :
+  fixes f :: "'a Valuation"
+  fixes U :: "char set"
+  fixes V :: "char set"
+  assumes "U\<inter>V={}"
+  assumes "U\<union>V=(dom f)"
+  shows "\<forall>x\<in>V. x\<notin>(dom (projectValuation f U))"
+proof (induct "card (dom f)")
+  case 0 \<comment> \<open>Case 0: keys is empty set\<close>
+  have "(dom f) = {}" using "0" by auto
+  hence empty_union: "U\<union>V={}" using assms(2) by auto
+  hence "U\<inter>V={}" using assms(1) by auto
+  hence "U={} \<and> V={}" using empty_union by auto
+  thus ?case by auto
+next
+  case (Suc n) \<comment> \<open>Case N: keys is not the empty set\<close>
+  let ?projected_domain = "(projectValuation f U)"
+  have not_empty_domain: "(dom f) \<noteq> {}" using Suc.hyps(2) assms(2) by auto
+  show ?case
+  proof (induct "(card U)")
+    case 0
+    have empty_u: "U={}" using "0" by auto
+    hence "V\<noteq>{}" using not_empty_domain and assms(2) by auto
+    have "(dom ?projected_domain) = {}" using empty_u by auto
+    thus ?case by auto
+  next
+    case (Suc m)
+    have non_empty_u: "U\<noteq>{}" using Suc.hyps(2) by auto
+    hence "(dom ?projected_domain) \<noteq> {}" by (metis UnCI Un_Int_eq(1) assms(2) dom_restrict projectValuation.simps subsetI)
+    show ?case
+    proof (induct "(card V)")
+      case 0
+      have empty_v: "V={}" using "0" by auto
+      hence "U = (dom f)" using assms(2) by auto
+      thus ?case using empty_v by auto
+    next
+      case (Suc o)
+      have non_empty_v: "V\<noteq>{}" using Suc.hyps(2) by auto
+      have "U = (dom ?projected_domain)" using assms(2) by auto
+      thus ?case using assms(1) by auto
+    qed
+  qed
+qed
 
 fun buildValuation :: "Variable list \<Rightarrow> 'a list \<Rightarrow> 'a Valuation"  where
 "buildValuation [] [] = Map.empty " |
@@ -108,23 +170,20 @@ fun isParent :: "'a Judgement \<Rightarrow> 'a Judgement \<Rightarrow> Formula \
 )"
 
 function existSq :: "Variable set \<Rightarrow> Formula \<Rightarrow> Formula" where
-"existSq vars \<phi> = (if ((card vars) > 0)
-  then (
+"(card vars) = 0 \<Longrightarrow> existSq vars \<phi> = \<phi>" |
+"(card vars) > 0 \<Longrightarrow> existSq vars \<phi> = (
     let
       v = (SOME x. x\<in> vars);
       reduced_vars = (vars - {v})
     in (
       Exists v (existSq reduced_vars \<phi>)
     )
-  )
-  else \<phi>
-)"
-  by auto
-
+  )"
+  apply auto
+  by (metis card_gt_0_iff finite)
 termination existSq
   apply (relation "measures [\<lambda>(vars, _). card vars]")
-  apply(auto)
-  by (simp add: card_gt_0_iff some_in_eq)
+  by (auto simp add: card_gt_0_iff some_in_eq)
 
 (* ================= Proof System Functions ================= *)
 
@@ -175,6 +234,9 @@ fun isDualProjection :: "'a Judgement \<Rightarrow> 'a Judgement \<Rightarrow> F
   )
 )"
 
+fun isValuationProjectionInJudgement :: "'a Valuation \<Rightarrow> 'a Judgement \<Rightarrow> bool" where
+"isValuationProjectionInJudgement f \<J> = ((projectValuation f (Vars \<J>)) \<in> (Funcs \<J>))"
+
 fun isJoin :: "'a Judgement \<Rightarrow> 'a Judgement \<Rightarrow> 'a Judgement \<Rightarrow> Formula \<Rightarrow> 'a Structure \<Rightarrow> bool" where
 "isJoin \<J> \<J>\<^sub>1 \<J>\<^sub>2 \<phi> \<B> = (
   ( (wfJudgement \<J> \<phi> \<B>) \<and> (wfJudgement \<J>\<^sub>1 \<phi> \<B>) \<and> (wfJudgement \<J>\<^sub>2 \<phi> \<B>) ) \<and>
@@ -182,19 +244,15 @@ fun isJoin :: "'a Judgement \<Rightarrow> 'a Judgement \<Rightarrow> 'a Judgemen
   ( isFormulaAnd (FoI (Index \<J>) (formulaToList \<phi>)) ) \<and>
   ( (isParent \<J> \<J>\<^sub>1 \<phi>) \<and> (isParent \<J> \<J>\<^sub>2 \<phi>) ) \<and>
   (
-    let
-      variables = (Vars \<J>\<^sub>1) \<union> (Vars \<J>\<^sub>2);
-      valuations = (allMaps variables (Univ \<B>))
-    in (
-      (Funcs \<J>) = {
-        f \<in> valuations. (
-          ( (projectValuation f (Vars \<J>\<^sub>1)) \<in> (Funcs \<J>\<^sub>1) ) \<and>
-          ( (projectValuation f (Vars \<J>\<^sub>2)) \<in> (Funcs \<J>\<^sub>2) )
-        )
-      }
-    )
+    (Funcs \<J>) = {
+      f \<in> (allMaps ((Vars \<J>\<^sub>1) \<union> (Vars \<J>\<^sub>2)) (Univ \<B>)). (
+        ( isValuationProjectionInJudgement f \<J>\<^sub>1 ) \<and>
+        ( isValuationProjectionInJudgement f \<J>\<^sub>2 )
+      )
+    }
   )
 )"
+print_theorems
 
 fun isUpwardFlow :: "'a Judgement \<Rightarrow> 'a Judgement \<Rightarrow> Formula \<Rightarrow> 'a Structure \<Rightarrow> bool" where
 "isUpwardFlow \<J>\<^sub>1 \<J>\<^sub>2 \<phi> \<B> = (
@@ -313,9 +371,6 @@ lemma "existSq {CHR ''x''} atomFormula = (Exists (CHR ''x'') atomFormula)"
 
 abbreviation "atomJudgement \<equiv> myJudgement"
 
-lemma "wfCPLInstance myFormula myStructure = True"
-  by auto
-
 lemma "wfJudgement atomJudgement myFormula myStructure = True"
   apply(simp add: Let_def)
   by auto
@@ -334,9 +389,6 @@ abbreviation "projectionProjectedJudgement::(BEnum Judgement) \<equiv> (Judgemen
   [CHR ''y'' \<mapsto> A],
   [CHR ''y'' \<mapsto> C]
 })"
-
-lemma "wfCPLInstance myFormula myStructure = True"
-  by auto
 
 lemma "wfJudgement projectionBaseJudgement myFormula myStructure = True"
   by (auto simp add: Let_def)
@@ -362,9 +414,6 @@ abbreviation "joinParentJudgement::(BEnum Judgement) \<equiv> (Judgement 3 myFre
   [CHR ''x'' \<mapsto> A, CHR ''y'' \<mapsto> C],
   [CHR ''x'' \<mapsto> B, CHR ''y'' \<mapsto> A]
 })"
-lemma "wfCPLInstance myFormula myStructure = True"
-  by auto
-
 lemma "wfJudgement joinFirstChildJudgement myFormula myStructure = True"
   by (auto simp add: Let_def)
 
@@ -386,11 +435,29 @@ lemma [simp] : "mapping \<noteq> Map.empty \<Longrightarrow> (\<lambda>x. None) 
   by auto
 
 (*
+theorem all_maps_simplification : "allMaps keys values = \<Union>{{
+  m(k \<mapsto> v) | m v. v \<in> values \<and> m \<in> (allMaps (keys-{k}) values)
+}| k. k \<in> keys}"
+  apply(auto)
+  sorry
+*)
+lemma [simp] : "wfJudgement joinParentJudgement myFormula myStructure = True"
+  by (simp add: Let_def)
+
+lemma [simp] : "wfJudgement joinFirstChildJudgement myFormula myStructure = True"
+  by (simp add: Let_def)
+
+lemma [simp] : "wfJudgement joinSecondChildJudgement myFormula myStructure = True"
+  by (simp add: Let_def)
+
+
 lemma "isJoin joinParentJudgement joinFirstChildJudgement joinSecondChildJudgement myFormula myStructure = True"
   apply(simp_all)
-  apply(simp)
-  done
-*)
+  apply(rule)
+   apply(simp_all)
+  apply(rule)
+  sorry
+
 
 abbreviation "forAllBaseJudgement::(BEnum Judgement) \<equiv> (Judgement 3 {CHR ''y''} {
   [CHR ''y'' \<mapsto> A],

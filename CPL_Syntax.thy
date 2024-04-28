@@ -15,6 +15,7 @@ And (and_f1: "Formula") (and_f2: "Formula") |
 Forall (forall_x: "Variable") (forall_f: "Formula") |
 Exists (exists_x: "Variable") (exists_f: "Formula")
 
+
 (* ======================== Auxiliary Functions ======================== *)
 
 fun freeVar :: "Formula \<Rightarrow> Variable set" where
@@ -55,8 +56,7 @@ lemma BEnum_induct: "\<lbrakk>x \<noteq> A; x \<noteq> B\<rbrakk> \<Longrightarr
 lemma UNIV_BEnum: "UNIV = {A, B, C}"
   by (auto simp add: BEnum_induct)
 
-instantiation BEnum :: enum \<comment>
- \<open> Note: We must indicate that this type is an enum to use ran and dom \<close>
+instantiation BEnum :: enum \<comment> \<open> Note: We must indicate that this type is an enum to use ran and dom \<close>
 begin
   definition "Enum.enum = [A,B,C]"
   definition "Enum.enum_all P \<longleftrightarrow> (Ball {A,B,C} P)"

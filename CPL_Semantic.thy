@@ -113,7 +113,10 @@ abbreviation "myValuationSet::(BEnum Valuation set) \<equiv> {
 abbreviation "myFreeVariableSet::(Variable set) \<equiv> {CHR ''x'', CHR ''y''}"
 abbreviation "myJudgement::(BEnum Judgement) \<equiv> (Judgement 6 myFreeVariableSet myValuationSet)"
 
-lemma "wfJudgement myJudgement myFormula myStructure = True"
+lemma [simp] : "wfCPLInstance myFormula myStructure = True"
+  by(auto)
+
+lemma [simp] : "wfJudgement myJudgement myFormula myStructure = True"
   by(auto simp add: Let_def)
 
 end
