@@ -290,27 +290,21 @@ abbreviation "joinParentJudgement::(BEnum Judgement) \<equiv> (Judgement 3 myFre
   [CHR ''x'' \<mapsto> A, CHR ''y'' \<mapsto> C],
   [CHR ''x'' \<mapsto> B, CHR ''y'' \<mapsto> A]
 })"
-lemma "wfJudgement joinFirstChildJudgement myFormula myStructure = True"
-  by (auto simp add: Let_def)
-
-lemma "wfJudgement joinSecondChildJudgement myFormula myStructure = True"
-  by (auto simp add: Let_def)
-
-lemma "wfJudgement joinParentJudgement myFormula myStructure = True"
-  by (auto simp add: Let_def)
 
 lemma [simp] : "myFreeVariableSet - {CHR ''y''} \<subseteq> {CHR ''x''}"
   by auto
+
 lemma [simp] : "{CHR ''y'', CHR ''x''} = myFreeVariableSet"
   by(auto)
+
 lemma [simp] : "insert (CHR ''y'') myFreeVariableSet = myFreeVariableSet"
   by auto
+
 lemma [simp] : "x\<in>S \<Longrightarrow> S = insert x S"
   by auto
+
 lemma [simp] : "mapping \<noteq> Map.empty \<Longrightarrow> (\<lambda>x. None) \<noteq> mapping" \<comment> \<open>  Note: This needs to be explicit because Map.empty \<equiv> (\<lambda>x. None) is an abbreviation  \<close>
   by auto
-
-
 
 lemma [simp] : "wfJudgement joinParentJudgement myFormula myStructure = True"
   by (simp add: Let_def)
@@ -320,7 +314,6 @@ lemma [simp] : "wfJudgement joinFirstChildJudgement myFormula myStructure = True
 
 lemma [simp] : "wfJudgement joinSecondChildJudgement myFormula myStructure = True"
   by (simp add: Let_def)
-
 
 lemma "isJoin joinParentJudgement joinFirstChildJudgement joinSecondChildJudgement myFormula myStructure = True"
   apply (simp_all add: Let_def)
@@ -346,7 +339,7 @@ lemma "wfJudgement forAllDualProjectedJudgement myFormula myStructure = True"
   by(auto)
 
 lemma "isDualProjection forAllDualProjectedJudgement forAllBaseJudgement myFormula myStructure = True"
-  by(simp_all add: Let_def)
+  by (simp_all add: Let_def)
 
 
 

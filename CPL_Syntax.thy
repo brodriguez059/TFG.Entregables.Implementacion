@@ -6,15 +6,13 @@ begin
 
 (* ======================== Type Definitions ======================== *)
 
-type_synonym 'a Enumerable =  "'a::enum" \<comment> \<open> Note: It is possible to define types that must implement a class using this syntax \<close>
-type_synonym Variable =  "char Enumerable" \<comment> \<open> Note: Explain the caveats of using string. We will have to keep using char for now \<close>
-type_synonym Relation =  "char Enumerable"
+type_synonym Variable =  "char" \<comment> \<open> Note: Explain the caveats of using string. We will have to keep using char for now \<close>
+type_synonym Relation =  "char"
 datatype Formula =
 Atom (atom_rel: "Relation") (atom_vars: "Variable list") |
 And (and_f1: "Formula") (and_f2: "Formula") |
 Forall (forall_x: "Variable") (forall_f: "Formula") |
 Exists (exists_x: "Variable") (exists_f: "Formula")
-
 
 (* ======================== Auxiliary Functions ======================== *)
 
