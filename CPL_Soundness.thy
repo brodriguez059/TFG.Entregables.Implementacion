@@ -74,6 +74,25 @@ PJR: "\<lbrakk>
   \<rbrakk> \<Longrightarrow> models \<phi> \<B> \<J>" \<comment> \<open>  TODO: Cambiar esta regla para que sea correcta  \<close>
 *)
 
+
+
+
+theorem CPL_Soundness_Theorem [simp] :
+  fixes \<phi> :: Formula
+  fixes \<B> :: "'a Structure"
+  fixes \<J>\<^sub>n :: "'a Judgement"
+  assumes "(wfCPLInstance \<phi> \<B>)"
+  assumes "\<J>\<^sub>n = (Judgement 0 {} {})"
+  assumes "isDerivable \<phi> \<B> \<J>\<^sub>n"
+  shows "\<not>(isModel (Map.empty) \<phi> \<B>)"
+proof -
+  sorry
+qed
+
+
+
+
+
 (* ======================== Tests ======================== *)
 
 lemma "existSq {CHR ''x''} atomFormula = (Exists (CHR ''x'') atomFormula)"

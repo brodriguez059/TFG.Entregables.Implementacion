@@ -20,50 +20,6 @@ fun projectValuation :: "'a Valuation \<Rightarrow> Variable set \<Rightarrow> '
   else Map.empty
 )"
 
-lemma projected_valuation_does_not_include_excluded_variables [simp] :
-  fixes f :: "'a Valuation"
-  fixes U :: "char set"
-  fixes V :: "char set"
-  assumes "U\<inter>V={}"
-  assumes "U\<union>V=(dom f)"
-  shows "\<forall>x\<in>V. x\<notin>(dom (projectValuation f U))"
-proof (induct "card (dom f)")
-  case 0 \<comment> \<open>Case 0: keys is empty set\<close>
-  have "(dom f) = {}" using "0" by auto
-  hence empty_union: "U\<union>V={}" using assms(2) by auto
-  hence "U\<inter>V={}" using assms(1) by auto
-  hence "U={} \<and> V={}" using empty_union by auto
-  thus ?case by auto
-next
-  case (Suc n) \<comment> \<open>Case N: keys is not the empty set\<close>
-  let ?projected_domain = "(projectValuation f U)"
-  have not_empty_domain: "(dom f) \<noteq> {}" using Suc.hyps(2) assms(2) by auto
-  show ?case
-  proof (induct "(card U)")
-    case 0
-    have empty_u: "U={}" using "0" by auto
-    hence "V\<noteq>{}" using not_empty_domain and assms(2) by auto
-    have "(dom ?projected_domain) = {}" using empty_u by auto
-    thus ?case by auto
-  next
-    case (Suc m)
-    have non_empty_u: "U\<noteq>{}" using Suc.hyps(2) by auto
-    hence "(dom ?projected_domain) \<noteq> {}" by (metis UnCI Un_Int_eq(1) assms(2) dom_restrict projectValuation.simps subsetI)
-    show ?case
-    proof (induct "(card V)")
-      case 0
-      have empty_v: "V={}" using "0" by auto
-      hence "U = (dom f)" using assms(2) by auto
-      thus ?case using empty_v by auto
-    next
-      case (Suc o)
-      have non_empty_v: "V\<noteq>{}" using Suc.hyps(2) by auto
-      have "U = (dom ?projected_domain)" using assms(2) by auto
-      thus ?case using assms(1) by auto
-    qed
-  qed
-qed
-
 fun projectJudgementValuations :: "'a Judgement \<Rightarrow> Variable set \<Rightarrow> 'a Valuation set" where
 "projectJudgementValuations \<J> V = {projectValuation f V | f. f \<in> (Funcs \<J>)}"
 
@@ -89,7 +45,7 @@ fun joinJudgementValuations :: "'a Judgement \<Rightarrow> 'a Judgement \<Righta
   )
 )"
 
-fun dualProjectJudgementValuations :: "'a Judgement \<Rightarrow> 'a Judgement  \<Rightarrow> Variable \<Rightarrow> 'a Structure \<Rightarrow> 'a Valuation set" where \<comment> \<open>  Note: |` is called restrict_map operator. m |` A = (\<lambda>x. if x \<in> A then m x else None)  \<close>
+fun dualProjectJudgementValuations :: "'a Judgement \<Rightarrow> 'a Judgement  \<Rightarrow> Variable \<Rightarrow> 'a Structure \<Rightarrow> 'a Valuation set" where
 "dualProjectJudgementValuations \<J>\<^sub>1 \<J>\<^sub>2 y \<B> = {
     f \<in> (Funcs \<J>\<^sub>1). ( \<forall>b \<in> (Univ \<B>). f(y \<mapsto> b) \<in> (Funcs \<J>\<^sub>2))
 }"
