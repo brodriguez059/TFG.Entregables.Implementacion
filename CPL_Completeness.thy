@@ -18,8 +18,11 @@ fun project :: "'a Judgement \<Rightarrow> Variable set \<Rightarrow> 'a Judgeme
 "project \<J> V = (Judgement (Index \<J>) V (projectJudgementValuations \<J> V))"
 
 function canonicalJudgement :: "nat \<Rightarrow> Formula \<Rightarrow> 'a Structure \<Rightarrow> 'a Judgement" where
-"(i \<notin> (setOfIndex (formulaToList \<phi>))) \<Longrightarrow> canonicalJudgement i \<phi> \<B> = (Judgement 0 {} {})" |
-"(i \<in> (setOfIndex (formulaToList \<phi>))) \<Longrightarrow> canonicalJudgement i \<phi> \<B> = (
+"canonicalJudgement i \<phi> \<B> = (
+  if (i \<notin> (setOfIndex (formulaToList \<phi>))) then (
+    Judgement 0 {} {}
+  )
+  else (
     let
       formula_list = (formulaToList \<phi>);
       \<psi> = (FoI i formula_list);
@@ -57,15 +60,23 @@ function canonicalJudgement :: "nat \<Rightarrow> Formula \<Rightarrow> 'a Struc
       )
     )
   )
+)
 "
-  apply (auto)
-  by blast
+  by (auto)
 
+(*
+termination canonicalJudgement
+  apply (relation "measures [\<lambda>(i, \<phi>, _). i]")
+  apply(auto)
 
+lemma "(canonicalJudgement 10 myFormula myStructure) = (Judgement 0 {} {})"
+  by (auto)
+*)
+
+(*
 fun setOfValModels :: "Formula \<Rightarrow> 'a Structure \<Rightarrow> 'a Valuation set" where
 "setOfValModels \<phi> \<B> = {}"
 
-(*
 lemma canonical_judgement_lemma_set_of_val_models [simp] :
   fixes \<phi> :: Formula
   fixes \<B> :: "'a Structure"
@@ -74,10 +85,11 @@ lemma canonical_judgement_lemma_set_of_val_models [simp] :
   assumes "(wfCPLInstance \<phi> \<B>)"
   assumes "(i \<in> (setOfIndex (formulaToList \<phi>)))"
   assumes "\<J>\<^sub>c = (canonicalJudgement i \<phi> \<B>)"
-  shows "(Funcs \<J>\<^sub>c) = (setOfValModel (FoI i (formulaToList \<phi>)) \<B>)"
+  shows "(Funcs \<J>\<^sub>c) = (setOfValModels (FoI i (formulaToList \<phi>)) \<B>)"
 proof -
   sorry
 qed
+*)
 
 lemma canonical_judgement_lemma_is_derivable [simp] :
   fixes \<phi> :: Formula
@@ -89,7 +101,7 @@ lemma canonical_judgement_lemma_is_derivable [simp] :
   assumes "\<J>\<^sub>c = (canonicalJudgement i \<phi> \<B>)"
   shows "isDerivable \<phi> \<B> \<J>\<^sub>c"
 proof -
-  sorry
+  show ?thesis by sorry
 qed
 
 theorem CPL_Completeness_Theorem [simp] :
@@ -101,8 +113,7 @@ theorem CPL_Completeness_Theorem [simp] :
   assumes "\<not>(isModel (Map.empty) \<phi> \<B>)"
   shows "isDerivable \<phi> \<B> \<J>\<^sub>n"
 proof -
-  sorry
+  show ?thesis by sorry
 qed
-*)
 
 end

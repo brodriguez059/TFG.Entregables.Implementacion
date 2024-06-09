@@ -64,14 +64,139 @@ fun isParent :: "'a Judgement \<Rightarrow> 'a Judgement \<Rightarrow> Formula \
     \<psi>\<^sub>2 = (FoI (Index \<J>\<^sub>2) formula_list)
   in ( case (\<psi>\<^sub>1) of
     (Atom r var_list) \<Rightarrow> False |
-    (Forall x \<phi>\<^sub>1) \<Rightarrow> ( ((Index \<J>\<^sub>1) = (Index \<J>\<^sub>2) - 1) \<and> (\<psi>\<^sub>2 = \<phi>\<^sub>1) ) |
-    (Exists x \<phi>\<^sub>1) \<Rightarrow> ( ((Index \<J>\<^sub>1) = (Index \<J>\<^sub>2) - 1) \<and> (\<psi>\<^sub>2 = \<phi>\<^sub>1) ) |
+    (Forall x \<phi>\<^sub>1) \<Rightarrow> ( ((Index \<J>\<^sub>1) = (Index \<J>\<^sub>2) - 1) \<and> (\<psi>\<^sub>2 = \<phi>\<^sub>1) ) | \<comment> \<open>
+      There might be issues with this approach when we want to deal with this case:
+      f=(And \<phi>1 \<phi>2),
+      \<phi>1=(Forall x \<psi>1),
+      \<phi>2=(Exists x \<psi>2)
+
+      formulaToList f = [f, \<phi>1, \<phi>2, \<psi>1, ..., \<psi>2, ...]
+ 
+      In this case the parent of \<psi>1 is in its index - 2 instead of index - 1,
+      In this case the parent of \<psi>2 is not easily calculable
+    \<close>
+    (Exists x \<phi>\<^sub>1) \<Rightarrow> ( ((Index \<J>\<^sub>1) = (Index \<J>\<^sub>2) - 1) \<and> (\<psi>\<^sub>2 = \<phi>\<^sub>1) ) | \<comment> \<open>
+      Same issues as Forall
+    \<close>
     (And \<phi>\<^sub>1 \<phi>\<^sub>2) \<Rightarrow> (
       ( ((Index \<J>\<^sub>1) = (Index \<J>\<^sub>2) - 1) \<and> (\<psi>\<^sub>2 = \<phi>\<^sub>1) ) \<or>
       ( ((Index \<J>\<^sub>1) = (Index \<J>\<^sub>2) - 2) \<and> (\<psi>\<^sub>2 = \<phi>\<^sub>2) )
     )
   )
 )"
+
+(*
+function allMaps :: "Variable set \<Rightarrow> 'a set \<Rightarrow> 'a Valuation set" where \<comment> \<open> TODO: Find a way to remove allMaps \<close>
+"((card keys) = 0) \<and> ((card values) = 0) \<Longrightarrow> allMaps keys values = {}" |
+"((card keys) > 0) \<and> ((card values) = 0) \<Longrightarrow> allMaps keys values = {}" |
+"((card keys) = 0) \<and> ((card values) > 0) \<Longrightarrow> allMaps keys values = { Map.empty }" |
+"((card keys) > 0) \<and> ((card values) > 0) \<Longrightarrow> allMaps keys values = (let
+      k = (SOME x. x \<in> keys)
+    in (
+      {
+        m(k \<mapsto> v) | m v. v \<in> values \<and> m \<in> (allMaps (keys - {k}) values)
+      }
+    )
+)"
+  apply auto
+  by (metis bot_nat_0.not_eq_extremum card_eq_0_iff finite)
+termination allMaps
+  apply (relation "measures [\<lambda>(keys, _). card keys]")
+  apply(auto)
+  by (simp add: card_gt_0_iff some_in_eq)
+*)
+           
+inductive allMaps :: "'a set \<Rightarrow> Variable set \<Rightarrow> 'a Valuation set \<Rightarrow> bool"
+  for vs :: "'a set"
+  where
+    invalidI [intro]: "vs = {} \<Longrightarrow> allMaps vs ks {}" |
+    emptyI [intro]: "\<lbrakk>vs \<noteq> {}\<rbrakk> \<Longrightarrow> allMaps vs {} { Map.empty }" |
+    insertI [intro]: "\<lbrakk>
+      vs \<noteq> {};
+      x \<notin> ks;
+      allMaps vs ks F
+    \<rbrakk> \<Longrightarrow> allMaps vs (insert x ks) {f(x\<mapsto>v) | f v. f\<in>F \<and> v\<in>vs}"
+
+print_theorems
+
+(*
+inductive_cases invalid_allMapsE [elim!]: "allMaps {} ks F"
+inductive_cases empty_allMapsE [elim!]: "allMaps vs {} F"
+*)
+
+lemma allMaps_invalid_correct_lemma:
+  shows "(allMaps {} ks {})"
+proof -
+  obtain F where "allMaps {} ks F" by blast
+  thus ?thesis by (simp add: invalidI)
+qed
+
+lemma allMaps_empty_correct_lemma:
+  fixes vs::"'a set"
+  assumes "vs \<noteq> {}"
+  shows "(allMaps vs {} {Map.empty})"
+proof -
+  obtain F where "allMaps vs {} F" by blast
+  thus ?thesis by (simp add: allMaps.emptyI assms)
+qed
+
+lemma allMaps_insert_correct_lemma:
+  fixes vs::"'a set"
+  fixes ks::"Variable set"
+  fixes F::"'a Valuation set"
+  fixes k::"Variable"
+  assumes "vs \<noteq> {}"
+  assumes "k \<notin> ks"
+  shows "(card (THE F. (allMaps vs (insert k ks) F))) > 0"
+proof -
+  let ?ks' = "(insert k ks)"
+  show "(card (THE F. (allMaps vs (insert k ks) F))) > 0"
+  proof (induct "card ks")
+    case 0
+    have emptyKs: "ks = {}" using "0" by auto
+    hence "(card (THE F. (allMaps vs (insert k ks) F))) = (card (THE F. (allMaps vs {k} F)))" by blast
+    obtain F where unitF: "(allMaps vs {k} F)" by blast
+    have "card F > 0"
+  next
+    case (Suc n)
+  qed
+qed
+
+(*
+  case (invalidI ks)
+next
+  case (emptyI)
+  have "vs \<noteq> {}" using assms(1) by auto
+  obtain F where allMapsEmptyKs: "allMaps vs {} F" using local.emptyI by blast
+  have "F = {Map.empty}" using allMapsEmptyKs local.emptyI by force
+  have "allMaps vs {} {Map.empty}" by (simp add: allMaps.emptyI local.emptyI)
+  assume "ks = {}"
+  have "(dom f) = {}" using \<open>ks = {}\<close> assms(3) by fastforce
+  have "f = Map.empty" using \<open>dom f = {}\<close> by auto
+  have "f \<in> F" using \<open>F = {\<lambda>x. None}\<close> \<open>dom f = {}\<close> by blast
+  thus ?case
+next
+  case (insertI ks x ks' F)
+  then show ?case sorry
+qed
+*)
+
+
+
+lemma "([CHR ''x'' \<mapsto> A]) \<in> (THE F. allMaps {A} {CHR ''x''} F)"
+  apply (simp_all)
+  
+
+(*
+inductive fold_graph :: "('a \<Rightarrow> 'b \<Rightarrow> 'b) \<Rightarrow> 'b \<Rightarrow> 'a set \<Rightarrow> 'b \<Rightarrow> bool"
+  for f :: "'a \<Rightarrow> 'b \<Rightarrow> 'b" and z :: 'b
+  where
+    emptyI [intro]: "fold_graph f z {} z"
+  | insertI [intro]: "x \<notin> A \<Longrightarrow> fold_graph f z A y \<Longrightarrow> fold_graph f z (insert x A) (f x y)"
+
+inductive_cases empty_fold_graphE [elim!]: "fold_graph f z {} x"
+*)
+
 
 (* ================= Proof System Functions ================= *)
 
@@ -94,7 +219,7 @@ fun isProjection :: "'a Judgement \<Rightarrow> 'a Judgement \<Rightarrow> Formu
   ( (wfJudgement \<J>\<^sub>1 \<phi> \<B>) \<and> (wfJudgement \<J>\<^sub>2 \<phi> \<B>) ) \<and>
   ( (Index \<J>\<^sub>1) = (Index \<J>\<^sub>2) ) \<and>
   ( (Funcs \<J>\<^sub>1) = (projectJudgementValuations \<J>\<^sub>2 (Vars \<J>\<^sub>1)) )
-)"                                  
+)"
 
 fun isJoin :: "'a Judgement \<Rightarrow> 'a Judgement \<Rightarrow> 'a Judgement \<Rightarrow> Formula \<Rightarrow> 'a Structure \<Rightarrow> bool" where
 "isJoin \<J> \<J>\<^sub>1 \<J>\<^sub>2 \<phi> \<B> = (

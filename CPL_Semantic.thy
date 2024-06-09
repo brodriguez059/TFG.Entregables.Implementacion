@@ -15,14 +15,28 @@ datatype 'a Judgement =  Judgement (Index: "nat") (Vars:  "Variable set") (Funcs
 
 (* ======================== Auxiliary Functions ======================== *)
 
-fun formulaToList :: "Formula \<Rightarrow> Formula list" where
+(*
+fun formulaToList :: "Formula \<Rightarrow> Formula list" where (*TODO: Change it so that it defines the list of parent indexes*)
 "formulaToList (Atom r var_list) = [Atom r var_list]" |
 "formulaToList (And \<phi>\<^sub>1 \<phi>\<^sub>2) = [And \<phi>\<^sub>1 \<phi>\<^sub>2, \<phi>\<^sub>1, \<phi>\<^sub>2] @ (tl (formulaToList \<phi>\<^sub>1)) @ (tl (formulaToList \<phi>\<^sub>2))" |
 "formulaToList (Forall x \<phi>) = [Forall x \<phi>] @ (formulaToList \<phi>)" |
 "formulaToList (Exists x \<phi>) = [Exists x \<phi>] @ (formulaToList \<phi>)"
+*)
+
+fun buildParentList :: "Formula \<Rightarrow> nat list" where
+"buildParentList (Atom r var_list) = [0]" |
+"buildParentList (Forall x \<phi>) = [0] @ (map ((+) 1) (buildParentList \<phi>))" |
+"buildParentList (Exists x \<phi>) = [0] @ (map ((+) 1) (buildParentList \<phi>))" |
+"buildParentList (And \<phi>\<^sub>1 \<phi>\<^sub>2) = (let
+    parent_list_1 = (map ((+) 1) (buildParentList \<phi>\<^sub>1));
+    parent_list_2 = (map ((+) (1 + (length parent_list_1))) (buildParentList \<phi>\<^sub>2))
+  in (
+    [0] @ parent_list_1 @ parent_list_2
+  )
+)"
 
 fun setOfIndex :: "Formula list \<Rightarrow> nat set" where
-"setOfIndex formula_list = { 1 .. (length formula_list) }"
+"setOfIndex parent_list = { 1 .. (length parent_list) }"
 
 fun FoI :: "nat \<Rightarrow> Formula list \<Rightarrow> Formula" where
 "FoI formula_index formula_list = formula_list ! (formula_index - 1)"
@@ -97,7 +111,7 @@ abbreviation "myFormula \<equiv> (
 lemma "wfFormula myFormula mySignature = True"
   by auto
 
-
+value "formulaToListTest myFormula"
 
 abbreviation "myInterpretation::(BEnum Interpretation) \<equiv> [CHR ''E'' \<mapsto> {[A,A],[A,C],[B,A]}]"
 abbreviation "myStructure::(BEnum Structure) \<equiv> (Structure mySignature myUniverse myInterpretation)"
