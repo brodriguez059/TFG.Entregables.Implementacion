@@ -56,56 +56,23 @@ fun HOmap :: "'a Valuation \<Rightarrow> Variable list \<Rightarrow> 'a list" wh
   else []
 )"
 
-fun isParent :: "'a Judgement \<Rightarrow> 'a Judgement \<Rightarrow> Formula \<Rightarrow> bool" where
+fun isParent :: "'a Judgement \<Rightarrow> 'a Judgement \<Rightarrow> Formula \<Rightarrow> bool" where (*TODO: Fix*)
 "isParent \<J>\<^sub>1 \<J>\<^sub>2 \<phi> = (
   let
-    formula_list = (formulaToList \<phi>);
+    (formula_list, parent_list) = (buildFormulaParentList \<phi>);
     \<psi>\<^sub>1 = (FoI (Index \<J>\<^sub>1) formula_list);
     \<psi>\<^sub>2 = (FoI (Index \<J>\<^sub>2) formula_list)
   in ( case (\<psi>\<^sub>1) of
     (Atom r var_list) \<Rightarrow> False |
-    (Forall x \<phi>\<^sub>1) \<Rightarrow> ( ((Index \<J>\<^sub>1) = (Index \<J>\<^sub>2) - 1) \<and> (\<psi>\<^sub>2 = \<phi>\<^sub>1) ) | \<comment> \<open>
-      There might be issues with this approach when we want to deal with this case:
-      f=(And \<phi>1 \<phi>2),
-      \<phi>1=(Forall x \<psi>1),
-      \<phi>2=(Exists x \<psi>2)
-
-      formulaToList f = [f, \<phi>1, \<phi>2, \<psi>1, ..., \<psi>2, ...]
- 
-      In this case the parent of \<psi>1 is in its index - 2 instead of index - 1,
-      In this case the parent of \<psi>2 is not easily calculable
-    \<close>
-    (Exists x \<phi>\<^sub>1) \<Rightarrow> ( ((Index \<J>\<^sub>1) = (Index \<J>\<^sub>2) - 1) \<and> (\<psi>\<^sub>2 = \<phi>\<^sub>1) ) | \<comment> \<open>
-      Same issues as Forall
-    \<close>
+    (Forall x \<phi>\<^sub>1) \<Rightarrow> ( ((Index \<J>\<^sub>1) = (parent_list ! (Index \<J>\<^sub>2 - 1)) ) \<and> (\<psi>\<^sub>2 = \<phi>\<^sub>1) ) |
+    (Exists x \<phi>\<^sub>1) \<Rightarrow> ( ((Index \<J>\<^sub>1) = (parent_list ! (Index \<J>\<^sub>2 - 1)) ) \<and> (\<psi>\<^sub>2 = \<phi>\<^sub>1) ) |
     (And \<phi>\<^sub>1 \<phi>\<^sub>2) \<Rightarrow> (
-      ( ((Index \<J>\<^sub>1) = (Index \<J>\<^sub>2) - 1) \<and> (\<psi>\<^sub>2 = \<phi>\<^sub>1) ) \<or>
-      ( ((Index \<J>\<^sub>1) = (Index \<J>\<^sub>2) - 2) \<and> (\<psi>\<^sub>2 = \<phi>\<^sub>2) )
+      ( (Index \<J>\<^sub>1) = (parent_list ! (Index \<J>\<^sub>2 - 1)) ) \<and> ( (\<psi>\<^sub>2 = \<phi>\<^sub>1) \<or> (\<psi>\<^sub>2 = \<phi>\<^sub>2) )
     )
   )
 )"
 
 (*
-function allMaps :: "Variable set \<Rightarrow> 'a set \<Rightarrow> 'a Valuation set" where \<comment> \<open> TODO: Find a way to remove allMaps \<close>
-"((card keys) = 0) \<and> ((card values) = 0) \<Longrightarrow> allMaps keys values = {}" |
-"((card keys) > 0) \<and> ((card values) = 0) \<Longrightarrow> allMaps keys values = {}" |
-"((card keys) = 0) \<and> ((card values) > 0) \<Longrightarrow> allMaps keys values = { Map.empty }" |
-"((card keys) > 0) \<and> ((card values) > 0) \<Longrightarrow> allMaps keys values = (let
-      k = (SOME x. x \<in> keys)
-    in (
-      {
-        m(k \<mapsto> v) | m v. v \<in> values \<and> m \<in> (allMaps (keys - {k}) values)
-      }
-    )
-)"
-  apply auto
-  by (metis bot_nat_0.not_eq_extremum card_eq_0_iff finite)
-termination allMaps
-  apply (relation "measures [\<lambda>(keys, _). card keys]")
-  apply(auto)
-  by (simp add: card_gt_0_iff some_in_eq)
-*)
-           
 inductive allMaps :: "'a set \<Rightarrow> Variable set \<Rightarrow> 'a Valuation set \<Rightarrow> bool"
   for vs :: "'a set"
   where
@@ -162,7 +129,7 @@ proof -
   qed
 qed
 
-(*
+
   case (invalidI ks)
 next
   case (emptyI)
@@ -179,12 +146,10 @@ next
   case (insertI ks x ks' F)
   then show ?case sorry
 qed
-*)
-
-
-
 lemma "([CHR ''x'' \<mapsto> A]) \<in> (THE F. allMaps {A} {CHR ''x''} F)"
   apply (simp_all)
+*)
+
   
 
 (*
@@ -203,7 +168,8 @@ inductive_cases empty_fold_graphE [elim!]: "fold_graph f z {} x"
 fun isAtom :: "'a Judgement \<Rightarrow> Formula \<Rightarrow> 'a Structure \<Rightarrow> bool" where
 "isAtom \<J> \<phi> \<B> = (
   let
-    \<psi> = (FoI (Index \<J>) (formulaToList \<phi>));
+    (formula_list, parent_list) = (buildFormulaParentList \<phi>);
+    \<psi> = (FoI (Index \<J>) formula_list);
     \<I> = (Interp \<B>)
   in
     (isFormulaAtom \<psi>) \<and>
@@ -225,7 +191,12 @@ fun isJoin :: "'a Judgement \<Rightarrow> 'a Judgement \<Rightarrow> 'a Judgemen
 "isJoin \<J> \<J>\<^sub>1 \<J>\<^sub>2 \<phi> \<B> = (
   ( (wfJudgement \<J> \<phi> \<B>) \<and> (wfJudgement \<J>\<^sub>1 \<phi> \<B>) \<and> (wfJudgement \<J>\<^sub>2 \<phi> \<B>) ) \<and>
   ( (Vars \<J>) = ((Vars \<J>\<^sub>1) \<union> (Vars \<J>\<^sub>2)) ) \<and>
-  ( isFormulaAnd (FoI (Index \<J>) (formulaToList \<phi>)) ) \<and>
+  (let
+    (formula_list, parent_list) = (buildFormulaParentList \<phi>)
+  in (
+      isFormulaAnd (FoI (Index \<J>) formula_list)
+    )
+  ) \<and>
   ( (isParent \<J> \<J>\<^sub>1 \<phi>) \<and> (isParent \<J> \<J>\<^sub>2 \<phi>) ) \<and>
   ( (Funcs \<J>) = (joinJudgementValuations \<J>\<^sub>1 \<J>\<^sub>2) )
 )"
@@ -236,7 +207,7 @@ fun isDualProjection :: "'a Judgement \<Rightarrow> 'a Judgement \<Rightarrow> F
   ( isParent \<J>\<^sub>1 \<J>\<^sub>2 \<phi> ) \<and>
   (
     let
-      formula_list = (formulaToList \<phi>);
+      (formula_list, parent_list) = (buildFormulaParentList \<phi>);
       \<psi>\<^sub>1 = (FoI (Index \<J>\<^sub>1) formula_list);
       \<psi>\<^sub>2 = (FoI (Index \<J>\<^sub>2) formula_list);
       y = (forall_x \<psi>\<^sub>1)
