@@ -72,7 +72,7 @@ fun isParent :: "'a Judgement \<Rightarrow> 'a Judgement \<Rightarrow> Formula \
   )
 )"
 
-(*
+
 inductive allMaps :: "'a set \<Rightarrow> Variable set \<Rightarrow> 'a Valuation set \<Rightarrow> bool"
   for vs :: "'a set"
   where
@@ -91,27 +91,25 @@ inductive_cases invalid_allMapsE [elim!]: "allMaps {} ks F"
 inductive_cases empty_allMapsE [elim!]: "allMaps vs {} F"
 *)
 
-lemma allMaps_invalid_correct_lemma:
+lemma allMaps_invalid_correct_lemma [simp]:
   shows "(allMaps {} ks {})"
 proof -
-  obtain F where "allMaps {} ks F" by blast
-  thus ?thesis by (simp add: invalidI)
+  show ?thesis by (simp add: invalidI)
 qed
 
-lemma allMaps_empty_correct_lemma:
+lemma allMaps_empty_correct_lemma [simp]:
   fixes vs::"'a set"
   assumes "vs \<noteq> {}"
   shows "(allMaps vs {} {Map.empty})"
 proof -
-  obtain F where "allMaps vs {} F" by blast
-  thus ?thesis by (simp add: allMaps.emptyI assms)
+  show ?thesis by (simp add: allMaps.emptyI assms)
 qed
 
 lemma allMaps_insert_correct_lemma:
   fixes vs::"'a set"
+  fixes k::"Variable"  
   fixes ks::"Variable set"
   fixes F::"'a Valuation set"
-  fixes k::"Variable"
   assumes "vs \<noteq> {}"
   assumes "k \<notin> ks"
   shows "(card (THE F. (allMaps vs (insert k ks) F))) > 0"
@@ -126,10 +124,11 @@ proof -
     have "card F > 0"
   next
     case (Suc n)
+    assume IH:"(card (THE F. (allMaps vs ks F))) > 0"
   qed
 qed
 
-
+(*
   case (invalidI ks)
 next
   case (emptyI)
@@ -146,6 +145,8 @@ next
   case (insertI ks x ks' F)
   then show ?case sorry
 qed
+
+
 lemma "([CHR ''x'' \<mapsto> A]) \<in> (THE F. allMaps {A} {CHR ''x''} F)"
   apply (simp_all)
 *)

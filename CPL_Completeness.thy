@@ -68,7 +68,6 @@ function canonicalJudgement :: "nat \<Rightarrow> Formula \<Rightarrow> 'a Struc
 termination canonicalJudgement
   apply (relation "measures [\<lambda>(i, \<phi>, _). i]")
   apply(auto)
-
 lemma "(canonicalJudgement 10 myFormula myStructure) = (Judgement 0 {} {})"
   by (auto)
 *)
