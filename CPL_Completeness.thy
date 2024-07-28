@@ -24,105 +24,67 @@ fun project :: "'a Judgement \<Rightarrow> Variable set \<Rightarrow> 'a Judgeme
 (* ======================== Canonical Judgement ======================== *)
 
 
-function canonicalJudgementF :: "nat \<Rightarrow> Formula list \<Rightarrow> 'a Structure \<Rightarrow> 'a Judgement" where
-"((length formula_list) = 0) \<Longrightarrow> canonicalJudgementF i formula_list \<B> = (Judgement 0 {} {})" |
-"(i = 0) \<Longrightarrow> canonicalJudgementF i formula_list \<B> = (Judgement 0 {} {})" |
-"((length formula_list) > 0) \<and> (i > (length formula_list)) \<Longrightarrow> canonicalJudgementF i formula_list \<B> = (Judgement 0 {} {})" |
-"((length formula_list) > 0) \<and> (i > 0) \<and> (i \<le> (length formula_list)) \<Longrightarrow> canonicalJudgementF i formula_list \<B> = (
-    let
-      \<psi> = (FoI i formula_list);
+function canonicalJudgementRec :: "Formula \<Rightarrow> nat \<Rightarrow> Formula list \<Rightarrow> ParentIndex list \<Rightarrow> 'a Structure \<Rightarrow> 'a Judgement" where
+"(((length \<phi>\<^sub>L) = 0) \<or> (i = 0)) \<Longrightarrow> canonicalJudgementRec \<psi> i \<phi>\<^sub>L P\<^sub>L \<B> = (Judgement 0 {} {})" |
+"((length \<phi>\<^sub>L) > 0) \<and> (i > (length \<phi>\<^sub>L)) \<Longrightarrow> canonicalJudgementRec \<psi> i \<phi>\<^sub>L P\<^sub>L \<B> = (Judgement 0 {} {})" |
+"((length \<phi>\<^sub>L) > 0) \<and> (i > 0) \<and> (i \<le> (length \<phi>\<^sub>L)) \<Longrightarrow> canonicalJudgementRec \<psi> i \<phi>\<^sub>L P\<^sub>L \<B> = (
+  case \<psi> of
+  (Atom r var_list) \<Rightarrow> (let
       \<I> = (Interp \<B>)
     in (
-      case \<psi> of
-      (Atom r var_list) \<Rightarrow> (
-        Judgement i (set var_list) (buildAtomValuations var_list (the (\<I> r)))
-      ) |
-      (Forall x \<psi>\<^sub>1) \<Rightarrow> (let
-        \<J>\<^sub>0 = (canonicalJudgementF (i+1) formula_list \<B>)
-      in (
-          (if (x \<in> (Vars \<J>\<^sub>0))
-            then (dualProject x \<J>\<^sub>0 \<B>)
-            else (Judgement i (Vars \<J>\<^sub>0) (Funcs \<J>\<^sub>0))
-          )
-        )
-      ) |
-      (Exists x \<psi>\<^sub>1) \<Rightarrow> (let
-        \<J>\<^sub>0 = (canonicalJudgementF (i+1) formula_list \<B>);
-        \<J>\<^sub>p = (project \<J>\<^sub>0 ((Vars \<J>\<^sub>0) - {x}))
-      in (
-          (if (x \<in> (Vars \<J>\<^sub>0))
-            then (Judgement i (Vars \<J>\<^sub>p) (Funcs \<J>\<^sub>p))
-            else (Judgement i (Vars \<J>\<^sub>0) (Funcs \<J>\<^sub>0))
-          )
-        )
-      ) |
-      (And \<psi>\<^sub>1 \<psi>\<^sub>2) \<Rightarrow> (let
-        \<J>\<^sub>0' = (canonicalJudgementF (i+1) formula_list \<B>);
-        \<J>\<^sub>1' = (canonicalJudgementF (i+2) formula_list \<B>)
-      in (
-          join (Judgement i (Vars \<J>\<^sub>0') (Funcs \<J>\<^sub>0')) (Judgement i (Vars \<J>\<^sub>1') (Funcs \<J>\<^sub>1'))
-        )
+      Judgement i (set var_list) (buildAtomValuations var_list (the (\<I> r)))
+    )
+  ) |
+  (Forall x \<psi>\<^sub>1) \<Rightarrow> (let
+    \<J>\<^sub>0 = (canonicalJudgementRec \<psi>\<^sub>1 (i+1) \<phi>\<^sub>L P\<^sub>L \<B>)
+  in (
+      (if (x \<in> (Vars \<J>\<^sub>0))
+        then (dualProject x \<J>\<^sub>0 \<B>)
+        else (Judgement i (Vars \<J>\<^sub>0) (Funcs \<J>\<^sub>0))
       )
     )
+  ) |
+  (Exists x \<psi>\<^sub>1) \<Rightarrow> (let
+    \<J>\<^sub>0 = (canonicalJudgementRec \<psi>\<^sub>1 (i+1) \<phi>\<^sub>L P\<^sub>L \<B>);
+    \<J>\<^sub>p = (project \<J>\<^sub>0 ((Vars \<J>\<^sub>0) - {x}))
+  in (
+      (if (x \<in> (Vars \<J>\<^sub>0))
+        then (Judgement i (Vars \<J>\<^sub>p) (Funcs \<J>\<^sub>p))
+        else (Judgement i (Vars \<J>\<^sub>0) (Funcs \<J>\<^sub>0))
+      )
+    )
+  ) |
+  (And \<psi>\<^sub>1 \<psi>\<^sub>2) \<Rightarrow> (let
+    childIndexes = (CoI i P\<^sub>L);
+    j = hd childIndexes;
+    k = last childIndexes;
+    \<J>\<^sub>0' = (canonicalJudgementRec \<psi>\<^sub>1 j \<phi>\<^sub>L P\<^sub>L \<B>);
+    \<J>\<^sub>1' = (canonicalJudgementRec \<psi>\<^sub>2 k \<phi>\<^sub>L P\<^sub>L \<B>)
+  in (
+      join (Judgement i (Vars \<J>\<^sub>0') (Funcs \<J>\<^sub>0')) (Judgement i (Vars \<J>\<^sub>1') (Funcs \<J>\<^sub>1'))
+    )
   )
+)
 "
   apply (auto)
   using linorder_not_less by blast
-termination
-  apply (relation "measures [\<lambda>(i, formula_list, _). formulaDepth(FoI i formula_list)]")
+termination canonicalJudgementRec
+  apply (relation "measures [\<lambda>(\<psi>, _, _, _, _). formulaDepth \<psi>]")
   apply (auto)
-  
+  done
 
 
-inductive canonicalJudgementInductive :: "'a Structure \<Rightarrow> Formula list \<Rightarrow> Formula \<Rightarrow> nat \<Rightarrow> 'a Judgement \<Rightarrow> bool"
-  for \<B>::"'a Structure" and \<phi>\<^sub>L :: "Formula list"
-  where
-    atomJ [simp] : "\<lbrakk>
-      (isFormulaAtom \<psi>)
-    \<rbrakk> \<Longrightarrow> canonicalJudgementInductive \<B> \<phi>\<^sub>L \<psi> i (
-        Judgement i (set (atom_vars \<psi>)) (buildAtomValuations var_list (the ((Interp \<B>) (atom_rel \<psi>))))
-    )" |
-    forAllJInVars [simp] : "\<lbrakk>
-      (length \<phi>\<^sub>L) > 0;
-      i \<le> (length \<phi>\<^sub>L);
-      (isFormulaForAll \<psi>);
-      (canonicalJudgementInductive \<B> \<phi>\<^sub>L (FoI (i+1) \<phi>\<^sub>L) (i+1) \<J>\<^sub>0);
-      ((forall_x \<psi>) \<in> (Vars \<J>\<^sub>0))
-    \<rbrakk> \<Longrightarrow> canonicalJudgementInductive \<B> \<phi>\<^sub>L \<psi> i (dualProject (forall_x \<psi>) \<J>\<^sub>0 \<B>)" |
-    forAllJNotInVars [simp] : "\<lbrakk>
-      (length \<phi>\<^sub>L) > 0;
-      i \<le> (length \<phi>\<^sub>L);
-      (isFormulaForAll \<psi>);
-      (canonicalJudgementInductive \<B> \<phi>\<^sub>L (FoI (i+1) \<phi>\<^sub>L) (i+1) \<J>\<^sub>0);
-      ((forall_x \<psi>) \<notin> (Vars \<J>\<^sub>0))
-    \<rbrakk> \<Longrightarrow> canonicalJudgementInductive \<B> \<phi>\<^sub>L \<psi> i (Judgement i (Vars \<J>\<^sub>0) (Funcs \<J>\<^sub>0))" |
-    existsJInVars [simp] : "\<lbrakk>
-      (length \<phi>\<^sub>L) > 0;
-      i \<le> (length \<phi>\<^sub>L);
-      (isFormulaExists \<psi>);
-      (canonicalJudgementInductive \<B> \<phi>\<^sub>L (FoI (i+1) \<phi>\<^sub>L) (i+1) \<J>\<^sub>0);
-      ((exists_x \<psi>) \<in> (Vars \<J>\<^sub>0))
-    \<rbrakk> \<Longrightarrow> canonicalJudgementInductive \<B> \<phi>\<^sub>L \<psi> i (let
-        \<J>\<^sub>p = (project \<J>\<^sub>0 ((Vars \<J>\<^sub>0) - {x}))
-      in (
-        Judgement i (Vars \<J>\<^sub>p) (Funcs \<J>\<^sub>p)
-      )
-    )" |
-    existsJNotInVars [simp] : "\<lbrakk>
-      (length \<phi>\<^sub>L) > 0;
-      i \<le> (length \<phi>\<^sub>L);
-      (isFormulaExists \<psi>);
-      (canonicalJudgementInductive \<B> \<phi>\<^sub>L (FoI (i+1) \<phi>\<^sub>L) (i+1) \<J>\<^sub>0);
-      ((exists_x \<psi>) \<notin> (Vars \<J>\<^sub>0))
-    \<rbrakk> \<Longrightarrow> canonicalJudgementInductive \<B> \<phi>\<^sub>L \<psi> i (Judgement i (Vars \<J>\<^sub>0) (Funcs \<J>\<^sub>0))"
-
-fun canonicalJudgement :: "'a Structure \<Rightarrow> Formula list \<Rightarrow> nat \<Rightarrow> 'a Judgement" where
-"canonicalJudgement \<B> [] i = (Judgement 0 {} {})" |
-"canonicalJudgement \<B> \<phi>\<^sub>L i = (if (i > (length \<phi>\<^sub>L))
-  then (Judgement 0 {} {})
-  else (
-    THE \<J>. (canonicalJudgementInductive \<B> \<phi>\<^sub>L (FoI i \<phi>\<^sub>L) i \<J>))
-  )"
+fun canonicalJudgement :: "nat \<Rightarrow> Formula \<Rightarrow> 'a Structure \<Rightarrow> 'a Judgement" where
+"canonicalJudgement 0 \<phi> \<B> = (Judgement 0 {} {})" |
+"canonicalJudgement i \<phi> \<B> = (let
+    (\<phi>\<^sub>L, P\<^sub>L) = buildFormulaParentList \<phi>
+  in (
+    (if ((i = 0) \<or> (i > (length \<phi>\<^sub>L)) \<or> ((length \<phi>\<^sub>L) = 0))
+      then (Judgement 0 {} {})
+      else (canonicalJudgementRec (FoI i \<phi>\<^sub>L) i \<phi>\<^sub>L P\<^sub>L \<B>)
+    )
+  )
+)"
 
 (*
 fun setOfValModels :: "Formula \<Rightarrow> 'a Structure \<Rightarrow> 'a Valuation set" where
@@ -142,7 +104,26 @@ proof -
 qed
 *)
 
-(*
+lemma canonical_judgement_lemma_index [simp] :
+  fixes \<phi> :: Formula
+  fixes \<B> :: "'a Structure"
+  fixes i :: nat
+  fixes \<J>\<^sub>c :: "'a Judgement"
+  assumes "(wfCPLInstance \<phi> \<B>)"
+  assumes "(i \<in> (setOfIndex (formulaToList \<phi>)))"
+  shows "(Index (canonicalJudgement i \<phi> \<B>)) = i"
+proof -
+  let ?formulaParentList = "buildFormulaParentList \<phi>"
+  obtain \<J>\<^sub>c where "\<J>\<^sub>c = (canonicalJudgement i \<phi> \<B>)" by simp
+  obtain \<phi>\<^sub>L where "\<phi>\<^sub>L = fst ?formulaParentList" by simp
+  obtain P\<^sub>L where "P\<^sub>L = snd ?formulaParentList" by simp
+  obtain \<psi> where "\<psi> = (FoI i \<phi>\<^sub>L)" by simp
+  have "(Index \<J>\<^sub>c) = i"
+  show ?thesis 
+qed
+
+
+
 lemma canonical_judgement_lemma_is_derivable [simp] :
   fixes \<phi> :: Formula
   fixes \<B> :: "'a Structure"
@@ -152,10 +133,28 @@ lemma canonical_judgement_lemma_is_derivable [simp] :
   assumes "(i \<in> (setOfIndex (formulaToList \<phi>)))"
   assumes "\<J>\<^sub>c = (canonicalJudgement i \<phi> \<B>)"
   shows "isDerivable \<phi> \<B> \<J>\<^sub>c"
-proof -
-  show ?thesis by sorry
+proof -        
+  let ?formulaParentList = "buildFormulaParentList \<phi>"
+  obtain \<phi>\<^sub>L where "\<phi>\<^sub>L = fst ?formulaParentList" by simp
+  obtain P\<^sub>L where "P\<^sub>L = snd ?formulaParentList" by simp
+  obtain \<psi> where "\<psi> = (FoI i \<phi>\<^sub>L)" by simp
+  show ?thesis
+  proof (cases \<psi>)
+  case (Atom r var_list)
+    then show ?thesis
+  next
+    case (And \<psi>\<^sub>1 \<psi>\<^sub>2)
+    then show ?thesis sorry
+  next
+    case (Forall x \<psi>\<^sub>1)
+    then show ?thesis sorry
+  next
+    case (Exists x \<psi>\<^sub>1)
+    then show ?thesis sorry
+  qed
 qed
-*)
+
+
 
 (* ================= Completeness Proof ================= *)
 
@@ -171,26 +170,24 @@ qed
 
 (* ==================== Tests ==================== *)
 
-abbreviation "myFormulaList \<equiv> (fst (buildFormulaParentList myFormula))"
+lemma "(canonicalJudgement 10 myFormula myStructure) = (Judgement 0 {} {})"
+  apply (auto)
+  apply (simp add: numeral_nat(2) numeral_Bit1)
+  done
 
-lemma "(canonicalJudgement myStructure myFormulaList 10) = (Judgement 0 {} {})"
-  by (auto)
+abbreviation "myOtherAtomFormula \<equiv> (Atom (CHR ''E'') [CHR ''x'', CHR ''y''])"
 
-lemma "(
-  canonicalJudgement
-    myStructure
-    (fst (buildFormulaParentList (Atom (CHR ''E'') [CHR ''x'', CHR ''y''])))
-    1
-  ) = (Judgement 1 {CHR ''x'', CHR ''y''} {
+lemma "(canonicalJudgement 1 myOtherAtomFormula myStructure) = (
+    Judgement 1 {CHR ''x'', CHR ''y''} {
       [CHR ''x'' \<mapsto> A, CHR ''y'' \<mapsto> A],
       [CHR ''x'' \<mapsto> A, CHR ''y'' \<mapsto> C],
       [CHR ''x'' \<mapsto> B, CHR ''y'' \<mapsto> A]
-    })"
+    }
+  )"
   apply (auto)
-  apply (rule the_equality)
-  apply (rule canonicalJudgementInductive.induct)
-  apply (auto)
-  
-  
+  apply (metis map_upds_Cons map_upds_Nil1)
+  apply (metis map_upds_Cons map_upds_Nil1)
+  apply (metis map_upds_Cons map_upds_Nil1)
+  done
 
 end
