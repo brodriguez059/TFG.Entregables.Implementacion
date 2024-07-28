@@ -82,11 +82,10 @@ theorem CPL_Soundness_Theorem [simp] :
   fixes \<B> :: "'a Structure"
   fixes \<J>\<^sub>n :: "'a Judgement"
   assumes "(wfCPLInstance \<phi> \<B>)"
-  assumes "\<J>\<^sub>n = (Judgement 0 {} {})"
-  assumes "isDerivable \<phi> \<B> \<J>\<^sub>n"
-  shows "\<not>(isModel (Map.empty) \<phi> \<B>)"
+  assumes "isDerivable \<phi> \<B> (Judgement 1 {} {})"
+  shows "\<not>(isModel e \<phi> \<B>)"
 proof -
-  sorry
+  show ?thesis by sorry
 qed
 
 

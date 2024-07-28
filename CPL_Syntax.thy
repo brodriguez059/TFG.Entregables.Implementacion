@@ -43,6 +43,48 @@ fun isFormulaExists :: "Formula \<Rightarrow> bool" where
 "isFormulaExists (Exists x \<phi>) = True" |
 "isFormulaExists _ = False"
 
+fun containsSubformula :: "Formula \<Rightarrow> Formula \<Rightarrow> bool" where
+"containsSubformula (Atom r var_list) \<phi>\<^sub>2 = False" |
+"containsSubformula (Forall x \<phi>) \<phi>\<^sub>2 = (\<phi> = \<phi>\<^sub>2)" |
+"containsSubformula (Exists x \<phi>) \<phi>\<^sub>2 = (\<phi> = \<phi>\<^sub>2)" |
+"containsSubformula (And \<phi>\<^sub>0 \<phi>\<^sub>1) \<phi>\<^sub>2 = ((\<phi>\<^sub>0 = \<phi>\<^sub>2) \<or> (\<phi>\<^sub>1 = \<phi>\<^sub>2))"
+
+fun formulaDepth :: "Formula \<Rightarrow> nat" where
+"formulaDepth (Atom r var_list) = 0" |
+"formulaDepth (Forall x \<phi>) = 1 + (formulaDepth \<phi>)" |
+"formulaDepth (Exists x \<phi>) = 1 + (formulaDepth \<phi>)" |
+"formulaDepth (And \<phi>\<^sub>0 \<phi>\<^sub>1) = 1 + (max (formulaDepth \<phi>\<^sub>0) (formulaDepth \<phi>\<^sub>1))"
+
+lemma finite_definition_of_formulas [simp] :
+  fixes \<phi>\<^sub>1 :: Formula
+  fixes \<phi>\<^sub>2 :: Formula
+  assumes "(containsSubformula \<phi>\<^sub>1 \<phi>\<^sub>2)"
+  shows "(formulaDepth \<phi>\<^sub>2) < (formulaDepth \<phi>\<^sub>1)"
+proof (cases \<phi>\<^sub>1)
+  case (Atom r var_list)
+  show ?thesis using Atom assms by fastforce
+next
+  case (Forall x \<phi>)
+  have "\<phi> = \<phi>\<^sub>2" using Forall assms by fastforce
+  then show ?thesis by (simp add: Forall)
+next
+  case (Exists x \<phi>)
+  have "\<phi> = \<phi>\<^sub>2" using Exists assms by fastforce
+  then show ?thesis by (simp add: Exists)
+next
+  case (And \<phi>\<^sub>3 \<phi>\<^sub>4)
+  let ?fD1 = "(formulaDepth \<phi>\<^sub>1)"
+  let ?fD2 = "(formulaDepth \<phi>\<^sub>2)"
+  let ?fD3 = "(formulaDepth \<phi>\<^sub>3)"
+  let ?fD4 = "(formulaDepth \<phi>\<^sub>4)"
+  let ?maxFD = "(max ?fD3 ?fD4)"
+  have and_subformula_equality : "((\<phi>\<^sub>3 = \<phi>\<^sub>2) \<or> (\<phi>\<^sub>4 = \<phi>\<^sub>2))" using And assms by fastforce
+  have max_depth_is_lesser : "?maxFD < ?fD1" using And by simp
+  show ?thesis using and_subformula_equality max_depth_is_lesser by auto
+qed
+
+(* ======================== Extra Functions ======================== *)
+
 (* ======================== Tests ======================== *)
 
 datatype BEnum = A | B | C (* Finite datatype *)

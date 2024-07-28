@@ -8,45 +8,42 @@ begin
 
 type_synonym Signature =  "Relation \<rightharpoonup> nat" \<comment> \<open> Represented by \<S> \<close>
 type_synonym 'a Interpretation = "Relation \<rightharpoonup> 'a list set" \<comment> \<open> Represented by \<I> \<close>
-datatype 'a Structure =  Structure (Sig: "Signature") (Univ: "'a set")  (Interp: "'a Interpretation") \<comment> \<open> Represented by \<B>, and internally by \<S> universe \<I> \<close>
-
-type_synonym 'a Valuation = "Variable \<rightharpoonup> 'a" \<comment> \<open> Represented by f \<close>
-datatype 'a Judgement =  Judgement (Index: "nat") (Vars:  "Variable set") (Funcs:  "'a Valuation set") \<comment> \<open> Represented by \<J>, and internally by index \<V> \<F> \<close>
+datatype 'a Structure =  Structure (Sig: "Signature") (Univ: "'a set")  (Interp: "'a Interpretation") \<comment> \<open> Represented by \<B>, and internally by \<S> D \<I> \<close>
 
 (* ======================== Auxiliary Functions ======================== *)
 
 fun buildFormulaParentList :: "Formula \<Rightarrow> (Formula list) \<times> (nat list)" where
 "buildFormulaParentList (Atom r var_list) = ([(Atom r var_list)], [0])" |
 "buildFormulaParentList (Forall x \<phi>) = (let
-    (formula_list, parent_list) = (buildFormulaParentList \<phi>);
-    new_parent_list = (map ((+) 1) parent_list)
+    (\<phi>\<^sub>L, P\<^sub>L) = (buildFormulaParentList \<phi>);
+    new_P\<^sub>L = (map ((+) 1) P\<^sub>L)
   in (
-     ((Forall x \<phi>) # formula_list, 0 # new_parent_list)
+     ((Forall x \<phi>) # \<phi>\<^sub>L, 0 # new_P\<^sub>L)
   )
 )" |
 "buildFormulaParentList (Exists x \<phi>) = (let
-    (formula_list, parent_list) = (buildFormulaParentList \<phi>);
-    new_parent_list = (map ((+) 1) parent_list)
+    (\<phi>\<^sub>L, P\<^sub>L) = (buildFormulaParentList \<phi>);
+    new_P\<^sub>L = (map ((+) 1) P\<^sub>L)
   in (
-     ((Exists x \<phi>) # formula_list, 0 # new_parent_list)
+     ((Exists x \<phi>) # \<phi>\<^sub>L, 0 # new_P\<^sub>L)
   )
 )" |
 "buildFormulaParentList (And \<phi>\<^sub>1 \<phi>\<^sub>2) = (let
-    (formula_list_\<phi>\<^sub>1, parent_list_\<phi>\<^sub>1) = (buildFormulaParentList \<phi>\<^sub>1);
-    new_parent_list_\<phi>\<^sub>1 = (map ((+) 1) parent_list_\<phi>\<^sub>1);
-    (formula_list_\<phi>\<^sub>2, parent_list_\<phi>\<^sub>2) = (buildFormulaParentList \<phi>\<^sub>2);
-    temp_new_parent_list_\<phi>\<^sub>2 = (map ((+) (1 + (length parent_list_\<phi>\<^sub>1))) parent_list_\<phi>\<^sub>2);
-    new_parent_list_\<phi>\<^sub>2 = 1 # (tl temp_new_parent_list_\<phi>\<^sub>2)
+    (\<phi>\<^sub>L_\<phi>\<^sub>1, P\<^sub>L_\<phi>\<^sub>1) = (buildFormulaParentList \<phi>\<^sub>1);
+    new_P\<^sub>L_\<phi>\<^sub>1 = (map ((+) 1) P\<^sub>L_\<phi>\<^sub>1);
+    (\<phi>\<^sub>L_\<phi>\<^sub>2, P\<^sub>L_\<phi>\<^sub>2) = (buildFormulaParentList \<phi>\<^sub>2);
+    temp_new_P\<^sub>L_\<phi>\<^sub>2 = (map ((+) (1 + (length P\<^sub>L_\<phi>\<^sub>1))) P\<^sub>L_\<phi>\<^sub>2);
+    new_P\<^sub>L_\<phi>\<^sub>2 = 1 # (tl temp_new_P\<^sub>L_\<phi>\<^sub>2)
   in (
-    ((And \<phi>\<^sub>1 \<phi>\<^sub>2) # formula_list_\<phi>\<^sub>1 @ formula_list_\<phi>\<^sub>2, 0 # new_parent_list_\<phi>\<^sub>1 @ new_parent_list_\<phi>\<^sub>2)
+    ((And \<phi>\<^sub>1 \<phi>\<^sub>2) # \<phi>\<^sub>L_\<phi>\<^sub>1 @ \<phi>\<^sub>L_\<phi>\<^sub>2, 0 # new_P\<^sub>L_\<phi>\<^sub>1 @ new_P\<^sub>L_\<phi>\<^sub>2)
   )
 )"
 
 fun setOfIndex :: "nat list \<Rightarrow> nat set" where
-"setOfIndex parent_list = { 1 .. (length parent_list) }"
+"setOfIndex P\<^sub>L = { 1 .. (length P\<^sub>L) }"
 
 fun FoI :: "nat \<Rightarrow> Formula list \<Rightarrow> Formula" where
-"FoI i formula_list = formula_list ! (i - 1)"
+"FoI i \<phi>\<^sub>L = \<phi>\<^sub>L ! (i - 1)"
 
 (* ======================== Well-Formedness Functions ======================== *)
 
@@ -80,22 +77,6 @@ fun wfCPLInstance :: "Formula \<Rightarrow> 'a Structure \<Rightarrow> bool" whe
   (sentence \<phi>) \<and>  
   (wfStructure \<B>) \<and>
   (wfFormula \<phi> (Sig \<B>))
-)"
-
-fun wfJudgement :: "'a Judgement \<Rightarrow> Formula \<Rightarrow> 'a Structure \<Rightarrow> bool" where
-"wfJudgement \<J> \<phi> \<B> = (let
-    (formula_list, parent_list) = buildFormulaParentList \<phi>;
-    judgement_index = (Index \<J>);
-    judgement_free_vars = (Vars \<J>);
-    judgement_valuations = (Funcs \<J>);
-    structure_domain = (Univ \<B>)
-  in (
-    ( wfCPLInstance \<phi> \<B> ) \<and>
-    ( judgement_index \<in> (setOfIndex parent_list) ) \<and>
-    ( judgement_free_vars \<subseteq> (freeVar (FoI judgement_index formula_list)) ) \<and>
-    ( \<forall>f \<in> judgement_valuations. ((dom f) = judgement_free_vars) )  \<and>
-    ( \<forall>f \<in> judgement_valuations. ((ran f) \<subseteq> structure_domain) )
-  )
 )"
 
 (* ==================== Tests ==================== *)
@@ -164,18 +145,7 @@ abbreviation "myStructure::(BEnum Structure) \<equiv> (Structure mySignature myU
 lemma "wfStructure myStructure = True"
   by auto
 
-abbreviation "myValuationSet::(BEnum Valuation set) \<equiv> {
-  [CHR ''x'' \<mapsto> A, CHR ''y'' \<mapsto> A],
-  [CHR ''x'' \<mapsto> A, CHR ''y'' \<mapsto> C],
-  [CHR ''x'' \<mapsto> B, CHR ''y'' \<mapsto> A]
-}"
-abbreviation "myFreeVariableSet::(Variable set) \<equiv> {CHR ''x'', CHR ''y''}"
-abbreviation "myJudgement::(BEnum Judgement) \<equiv> (Judgement 6 myFreeVariableSet myValuationSet)"
-
 lemma [simp] : "wfCPLInstance myFormula myStructure = True"
   by(auto)
-
-lemma [simp] : "wfJudgement myJudgement myFormula myStructure = True"
-  by(auto simp add: Let_def)
 
 end

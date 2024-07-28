@@ -1,23 +1,20 @@
 theory "CPL_Proof_System"
-  imports Main "CPL_Syntax" "CPL_Semantic"
+  imports Main "CPL_Syntax" "CPL_Semantic" "CPL_Proof_Base"
 begin
 
 (* ================= Auxiliary Functions ================= *)
 
 fun buildValuation :: "Variable list \<Rightarrow> 'a list \<Rightarrow> 'a Valuation"  where
-"buildValuation [] [] = Map.empty " |
-"buildValuation variables values = (if (length(variables) = length(values))
-  then Map.empty (variables [\<mapsto>] values)
-  else Map.empty
-)"
+"buildValuation [] [] = e " |
+"buildValuation variables values = [variables [\<mapsto>] values]"
 
 fun buildAtomValuations :: "Variable list \<Rightarrow> 'a list set \<Rightarrow> 'a Valuation set" where
-"buildAtomValuations ks vs_set = { buildValuation ks l | l. l \<in> vs_set }"
+"buildAtomValuations kl vs_set = { buildValuation kl vl | vl. vl \<in> vs_set }"
 
 fun projectValuation :: "'a Valuation \<Rightarrow> Variable set \<Rightarrow> 'a Valuation" where \<comment> \<open>  Note: |` is called restrict_map operator. m |` A = (\<lambda>x. if x \<in> A then m x else None)  \<close>
 "projectValuation f V = (if (V \<subseteq> (dom f))
   then f |` V
-  else Map.empty
+  else e
 )"
 
 fun projectJudgementValuations :: "'a Judgement \<Rightarrow> Variable set \<Rightarrow> 'a Valuation set" where
@@ -50,127 +47,19 @@ fun dualProjectJudgementValuations :: "'a Judgement \<Rightarrow> 'a Judgement  
     f \<in> (Funcs \<J>\<^sub>1). ( \<forall>b \<in> (Univ \<B>). f(y \<mapsto> b) \<in> (Funcs \<J>\<^sub>2))
 }"
 
-fun HOmap :: "'a Valuation \<Rightarrow> Variable list \<Rightarrow> 'a list" where \<comment> \<open> TODO: Explain this and change in more detail \<close>
-"HOmap f vs = (if ((set vs) \<subseteq> (dom f))
+fun mapValuation :: "'a Valuation \<Rightarrow> Variable list \<Rightarrow> 'a list" where \<comment> \<open> TODO: Explain this and change in more detail \<close>
+"mapValuation f vs = (if ((set vs) \<subseteq> (dom f))
   then [the (f v). v \<leftarrow> vs]
   else []
 )"
-
-fun isParent :: "'a Judgement \<Rightarrow> 'a Judgement \<Rightarrow> Formula \<Rightarrow> bool" where (*TODO: Fix*)
-"isParent \<J>\<^sub>1 \<J>\<^sub>2 \<phi> = (
-  let
-    (formula_list, parent_list) = (buildFormulaParentList \<phi>);
-    \<psi>\<^sub>1 = (FoI (Index \<J>\<^sub>1) formula_list);
-    \<psi>\<^sub>2 = (FoI (Index \<J>\<^sub>2) formula_list)
-  in ( case (\<psi>\<^sub>1) of
-    (Atom r var_list) \<Rightarrow> False |
-    (Forall x \<phi>\<^sub>1) \<Rightarrow> ( ((Index \<J>\<^sub>1) = (parent_list ! (Index \<J>\<^sub>2 - 1)) ) \<and> (\<psi>\<^sub>2 = \<phi>\<^sub>1) ) |
-    (Exists x \<phi>\<^sub>1) \<Rightarrow> ( ((Index \<J>\<^sub>1) = (parent_list ! (Index \<J>\<^sub>2 - 1)) ) \<and> (\<psi>\<^sub>2 = \<phi>\<^sub>1) ) |
-    (And \<phi>\<^sub>1 \<phi>\<^sub>2) \<Rightarrow> (
-      ( (Index \<J>\<^sub>1) = (parent_list ! (Index \<J>\<^sub>2 - 1)) ) \<and> ( (\<psi>\<^sub>2 = \<phi>\<^sub>1) \<or> (\<psi>\<^sub>2 = \<phi>\<^sub>2) )
-    )
-  )
-)"
-
-
-inductive allMaps :: "'a set \<Rightarrow> Variable set \<Rightarrow> 'a Valuation set \<Rightarrow> bool"
-  for vs :: "'a set"
-  where
-    invalidI [intro]: "vs = {} \<Longrightarrow> allMaps vs ks {}" |
-    emptyI [intro]: "\<lbrakk>vs \<noteq> {}\<rbrakk> \<Longrightarrow> allMaps vs {} { Map.empty }" |
-    insertI [intro]: "\<lbrakk>
-      vs \<noteq> {};
-      x \<notin> ks;
-      allMaps vs ks F
-    \<rbrakk> \<Longrightarrow> allMaps vs (insert x ks) {f(x\<mapsto>v) | f v. f\<in>F \<and> v\<in>vs}"
-
-print_theorems
-
-(*
-inductive_cases invalid_allMapsE [elim!]: "allMaps {} ks F"
-inductive_cases empty_allMapsE [elim!]: "allMaps vs {} F"
-*)
-
-lemma allMaps_invalid_correct_lemma [simp]:
-  shows "(allMaps {} ks {})"
-proof -
-  show ?thesis by (simp add: invalidI)
-qed
-
-lemma allMaps_empty_correct_lemma [simp]:
-  fixes vs::"'a set"
-  assumes "vs \<noteq> {}"
-  shows "(allMaps vs {} {Map.empty})"
-proof -
-  show ?thesis by (simp add: allMaps.emptyI assms)
-qed
-
-lemma allMaps_insert_correct_lemma:
-  fixes vs::"'a set"
-  fixes k::"Variable"  
-  fixes ks::"Variable set"
-  fixes F::"'a Valuation set"
-  assumes "vs \<noteq> {}"
-  assumes "k \<notin> ks"
-  shows "(card (THE F. (allMaps vs (insert k ks) F))) > 0"
-proof -
-  let ?ks' = "(insert k ks)"
-  show "(card (THE F. (allMaps vs (insert k ks) F))) > 0"
-  proof (induct "card ks")
-    case 0
-    have emptyKs: "ks = {}" using "0" by auto
-    hence "(card (THE F. (allMaps vs (insert k ks) F))) = (card (THE F. (allMaps vs {k} F)))" by blast
-    obtain F where unitF: "(allMaps vs {k} F)" by blast
-    have "card F > 0"
-  next
-    case (Suc n)
-    assume IH:"(card (THE F. (allMaps vs ks F))) > 0"
-  qed
-qed
-
-(*
-  case (invalidI ks)
-next
-  case (emptyI)
-  have "vs \<noteq> {}" using assms(1) by auto
-  obtain F where allMapsEmptyKs: "allMaps vs {} F" using local.emptyI by blast
-  have "F = {Map.empty}" using allMapsEmptyKs local.emptyI by force
-  have "allMaps vs {} {Map.empty}" by (simp add: allMaps.emptyI local.emptyI)
-  assume "ks = {}"
-  have "(dom f) = {}" using \<open>ks = {}\<close> assms(3) by fastforce
-  have "f = Map.empty" using \<open>dom f = {}\<close> by auto
-  have "f \<in> F" using \<open>F = {\<lambda>x. None}\<close> \<open>dom f = {}\<close> by blast
-  thus ?case
-next
-  case (insertI ks x ks' F)
-  then show ?case sorry
-qed
-
-
-lemma "([CHR ''x'' \<mapsto> A]) \<in> (THE F. allMaps {A} {CHR ''x''} F)"
-  apply (simp_all)
-*)
-
-  
-
-(*
-inductive fold_graph :: "('a \<Rightarrow> 'b \<Rightarrow> 'b) \<Rightarrow> 'b \<Rightarrow> 'a set \<Rightarrow> 'b \<Rightarrow> bool"
-  for f :: "'a \<Rightarrow> 'b \<Rightarrow> 'b" and z :: 'b
-  where
-    emptyI [intro]: "fold_graph f z {} z"
-  | insertI [intro]: "x \<notin> A \<Longrightarrow> fold_graph f z A y \<Longrightarrow> fold_graph f z (insert x A) (f x y)"
-
-inductive_cases empty_fold_graphE [elim!]: "fold_graph f z {} x"
-*)
-
 
 (* ================= Proof System Functions ================= *)
 
 fun isAtom :: "'a Judgement \<Rightarrow> Formula \<Rightarrow> 'a Structure \<Rightarrow> bool" where
 "isAtom \<J> \<phi> \<B> = (
   let
-    (formula_list, parent_list) = (buildFormulaParentList \<phi>);
-    \<psi> = (FoI (Index \<J>) formula_list);
+    (\<phi>\<^sub>L, _) = (buildFormulaParentList \<phi>);
+    \<psi> = (FoI (Index \<J>) \<phi>\<^sub>L);
     \<I> = (Interp \<B>)
   in
     (isFormulaAtom \<psi>) \<and>
@@ -193,26 +82,26 @@ fun isJoin :: "'a Judgement \<Rightarrow> 'a Judgement \<Rightarrow> 'a Judgemen
   ( (wfJudgement \<J> \<phi> \<B>) \<and> (wfJudgement \<J>\<^sub>1 \<phi> \<B>) \<and> (wfJudgement \<J>\<^sub>2 \<phi> \<B>) ) \<and>
   ( (Vars \<J>) = ((Vars \<J>\<^sub>1) \<union> (Vars \<J>\<^sub>2)) ) \<and>
   (let
-    (formula_list, parent_list) = (buildFormulaParentList \<phi>)
+    (\<phi>\<^sub>L, P\<^sub>L) = (buildFormulaParentList \<phi>)
   in (
-      isFormulaAnd (FoI (Index \<J>) formula_list)
+      isFormulaAnd (FoI (Index \<J>) \<phi>\<^sub>L) \<and>
+      ( (isParent \<J> \<J>\<^sub>1 \<phi>\<^sub>L P\<^sub>L) \<and> (isParent \<J> \<J>\<^sub>2 \<phi>\<^sub>L P\<^sub>L) )
     )
   ) \<and>
-  ( (isParent \<J> \<J>\<^sub>1 \<phi>) \<and> (isParent \<J> \<J>\<^sub>2 \<phi>) ) \<and>
   ( (Funcs \<J>) = (joinJudgementValuations \<J>\<^sub>1 \<J>\<^sub>2) )
 )"
 
 fun isDualProjection :: "'a Judgement \<Rightarrow> 'a Judgement \<Rightarrow> Formula \<Rightarrow> 'a Structure \<Rightarrow> bool" where
 "isDualProjection \<J>\<^sub>1 \<J>\<^sub>2 \<phi> \<B> = (
   ( (wfJudgement \<J>\<^sub>1 \<phi> \<B>) \<and> (wfJudgement \<J>\<^sub>2 \<phi> \<B>) ) \<and>
-  ( isParent \<J>\<^sub>1 \<J>\<^sub>2 \<phi> ) \<and>
   (
     let
-      (formula_list, parent_list) = (buildFormulaParentList \<phi>);
-      \<psi>\<^sub>1 = (FoI (Index \<J>\<^sub>1) formula_list);
-      \<psi>\<^sub>2 = (FoI (Index \<J>\<^sub>2) formula_list);
+      (\<phi>\<^sub>L, P\<^sub>L) = (buildFormulaParentList \<phi>);
+      \<psi>\<^sub>1 = (FoI (Index \<J>\<^sub>1) \<phi>\<^sub>L);
+      \<psi>\<^sub>2 = (FoI (Index \<J>\<^sub>2) \<phi>\<^sub>L);
       y = (forall_x \<psi>\<^sub>1)
     in (
+      ( isParent \<J>\<^sub>1 \<J>\<^sub>2 \<phi>\<^sub>L P\<^sub>L ) \<and>
       (isFormulaForAll \<psi>\<^sub>1) \<and>
       ( \<psi>\<^sub>1 = (Forall y \<psi>\<^sub>2) ) \<and>
       ( y \<in> (Vars \<J>\<^sub>2) )  \<and>
@@ -227,7 +116,13 @@ fun isUpwardFlow :: "'a Judgement \<Rightarrow> 'a Judgement \<Rightarrow> Formu
     ( (wfJudgement \<J>\<^sub>1 \<phi> \<B>) \<and> (wfJudgement \<J>\<^sub>2 \<phi> \<B>) ) \<and>
     ( (Vars \<J>\<^sub>1) = (Vars \<J>\<^sub>2) ) \<and>
     ( (Funcs \<J>\<^sub>1) = (Funcs \<J>\<^sub>2) ) \<and>
-    ( isParent \<J>\<^sub>1 \<J>\<^sub>2 \<phi> )
+    (
+    let
+      (\<phi>\<^sub>L, P\<^sub>L) = (buildFormulaParentList \<phi>)
+    in (
+        isParent \<J>\<^sub>1 \<J>\<^sub>2 \<phi>\<^sub>L P\<^sub>L
+      )
+    )
 )"
 
 (* ================= Proof System ================= *)
@@ -276,8 +171,9 @@ UFR: "\<lbrakk>
   ))
   \<rbrakk> \<Longrightarrow> isDerivable \<phi> \<B> \<J>"
 
-fun isModel :: "'a Valuation \<Rightarrow> Formula \<Rightarrow> 'a Structure \<Rightarrow> bool" where
-"isModel f \<phi> \<B> = (
+\<comment> \<open>The predicate isModel decides if the (\<B>,f) is a model of \<phi> ( (\<B>,f) \<Turnstile> \<phi> )\<close>
+fun isModel :: "'a Structure \<Rightarrow> 'a Valuation \<Rightarrow> Formula \<Rightarrow> bool" where
+"isModel \<B> f \<phi> = (
   (wfStructure \<B>) \<and>
   (wfFormula \<phi> (Sig \<B>)) \<and>
   ((ran f) \<subseteq> (Univ \<B>)) \<and>
@@ -287,14 +183,15 @@ fun isModel :: "'a Valuation \<Rightarrow> Formula \<Rightarrow> 'a Structure \<
       None \<Rightarrow> False |
       (Some set_of_list) \<Rightarrow> (
         ((set var_list) \<subseteq> (dom f)) \<and>
-        ((HOmap f var_list) \<in> set_of_list)
+        ((mapValuation f var_list) \<in> set_of_list)
       )
     ) |
-    (And \<psi>\<^sub>1 \<psi>\<^sub>2) \<Rightarrow> ((isModel f \<psi>\<^sub>1 \<B>) \<and> (isModel f \<psi>\<^sub>2 \<B>)) |
-    (Forall x \<psi>) \<Rightarrow> (\<forall>v\<in>(Univ \<B>). (isModel (f(x \<mapsto> v)) \<psi> \<B>))|
-    (Exists x \<psi>) \<Rightarrow> (\<exists>v\<in>(Univ \<B>). (isModel (f(x \<mapsto> v)) \<psi> \<B>))
+    (And \<psi>\<^sub>1 \<psi>\<^sub>2) \<Rightarrow> ((isModel \<B> f \<psi>\<^sub>1) \<and> (isModel \<B> f \<psi>\<^sub>2)) |
+    (Forall x \<psi>) \<Rightarrow> (\<forall>v\<in>(Univ \<B>). (isModel \<B> (f(x \<mapsto> v)) \<psi>))|
+    (Exists x \<psi>) \<Rightarrow> (\<exists>v\<in>(Univ \<B>). (isModel \<B> (f(x \<mapsto> v)) \<psi>))
   )
 )"
+
 
 (* ======================== Tests ======================== *)
 
@@ -303,7 +200,7 @@ abbreviation "atomJudgement \<equiv> myJudgement"
 lemma "wfJudgement atomJudgement myFormula myStructure = True"
   apply(simp add: Let_def)
   by auto
-
+                                           
 lemma "(isAtom atomJudgement myFormula myStructure) = True"
   apply(simp add: Let_def)
   apply(auto)
