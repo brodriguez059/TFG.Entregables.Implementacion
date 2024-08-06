@@ -83,7 +83,14 @@ next
   show ?thesis using and_subformula_equality max_depth_is_lesser by auto
 qed
 
-(* ======================== Extra Functions ======================== *)
+(* ======================== Extra Lemmas ======================== *)
+
+lemma non_empty_atom_cannot_be_sentence [simp] : "\<lbrakk>
+  (isFormulaAtom \<phi>);
+  (length (atom_vars \<phi>) > 0)
+\<rbrakk> \<Longrightarrow> (\<not> (sentence \<phi>))"
+  apply (auto)
+  by (metis Formula.collapse(1) Formula.discI(1) freeVar.simps(1) isFormulaAtom.elims(2) set_empty2)
 
 (* ======================== Tests ======================== *)
 

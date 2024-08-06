@@ -69,8 +69,53 @@ next
   then show ?thesis by simp
 qed
 
+lemma parent_list_is_never_empty [simp] :
+  fixes \<phi> :: Formula
+  fixes \<phi>\<^sub>L :: "Formula list"
+  fixes P\<^sub>L :: "ParentIndex list"
+  assumes "(\<phi>\<^sub>L, P\<^sub>L) = (buildFormulaParentList \<phi>)"
+  shows "(length P\<^sub>L) > 0"
+proof (cases \<phi>)
+  case (Atom r var_list)
+  let ?len = "length P\<^sub>L"
+  have "?len = 1" using Atom assms by fastforce
+  then show ?thesis by simp
+next
+  case (And \<psi>\<^sub>1 \<psi>\<^sub>2)
+  let ?len = "length P\<^sub>L"
+  have "?len > 0" by (metis (no_types, lifting) And Pair_inject assms buildFormulaParentList.simps(4) length_greater_0_conv list.discI split_def) 
+  then show ?thesis by auto
+next
+  case (Forall x \<psi>)
+  let ?len = "length P\<^sub>L"
+  have "?len > 0" by (metis (no_types, lifting) Forall Pair_inject assms buildFormulaParentList.simps(2) length_greater_0_conv list.discI split_def)
+  then show ?thesis by simp
+next
+  case (Exists x \<psi>)
+  let ?len = "length P\<^sub>L"
+  have "?len > 0" by (smt (verit) Exists assms buildFormulaParentList.simps(3) length_greater_0_conv list.distinct(1) prod.inject split_def) 
+  then show ?thesis by simp
+qed
+
 fun setOfIndex :: "nat list \<Rightarrow> nat set" where
 "setOfIndex P\<^sub>L = { 1 .. (length P\<^sub>L) }"
+
+lemma set_of_index_never_contains_zero [simp] : "\<lbrakk>
+  (\<phi>\<^sub>L, P\<^sub>L) = (buildFormulaParentList \<phi>)
+\<rbrakk> \<Longrightarrow> (0 \<notin> (setOfIndex P\<^sub>L))"
+  by (auto)
+
+lemma every_index_is_in_inside_range : "\<lbrakk>
+  (\<phi>\<^sub>L, P\<^sub>L) = (buildFormulaParentList \<phi>);
+  (i \<in> (setOfIndex P\<^sub>L))
+\<rbrakk> \<Longrightarrow> (1 \<le> i) \<and> (i \<le> (length P\<^sub>L))"
+  by (auto)
+
+lemma one_is_always_in_set_of_index : "\<lbrakk>
+  (\<phi>\<^sub>L, P\<^sub>L) = (buildFormulaParentList \<phi>)
+\<rbrakk> \<Longrightarrow> (1 \<in> (setOfIndex P\<^sub>L))"
+  apply (auto)
+  by (meson Suc_leI parent_list_is_never_empty)
 
 fun FoI :: "nat \<Rightarrow> Formula list \<Rightarrow> Formula" where
 "FoI i \<phi>\<^sub>L = \<phi>\<^sub>L ! (i - 1)"
@@ -92,12 +137,11 @@ fun wfFormula :: "Formula \<Rightarrow> Signature \<Rightarrow> bool" where
 "wfFormula (Atom r var_list) \<S> = (
     case (\<S> r) of
     None \<Rightarrow> False |
-    (Some n) \<Rightarrow> ((length var_list) = n)
+    (Some n) \<Rightarrow> ((length var_list) = n) \<comment> \<open>He supuesto que aceptamos símbolos de relacion de aridad 0\<close>
 )" |
 "wfFormula (And \<phi>\<^sub>1 \<phi>\<^sub>2) \<S> = ((wfFormula \<phi>\<^sub>1 \<S>) \<and> (wfFormula \<phi>\<^sub>2 \<S>))" |
 "wfFormula (Forall x \<phi>) \<S> = (wfFormula \<phi> \<S>)" |
 "wfFormula (Exists x \<phi>) \<S> = (wfFormula \<phi> \<S>)"
-
 
 fun wfStructure :: "'a Structure \<Rightarrow> bool" where
 "wfStructure (Structure \<S> universe \<I>) = (
