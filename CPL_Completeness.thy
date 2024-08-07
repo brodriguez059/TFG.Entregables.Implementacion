@@ -21,8 +21,7 @@ fun dualProject :: "Variable \<Rightarrow> 'a Judgement \<Rightarrow> 'a Structu
 fun project :: "'a Judgement \<Rightarrow> Variable set \<Rightarrow> 'a Judgement" where
 "project \<J> V = (Judgement (Index \<J>) V (projectJudgementValuations \<J> V))"
 
-(* ======================== Canonical Judgement ======================== *)
-
+(* ======================== Canonical Judgement Functions ======================== *)
 
 function canonicalJudgementRec :: "Formula \<Rightarrow> nat \<Rightarrow> Formula list \<Rightarrow> ParentIndex list \<Rightarrow> 'a Structure \<Rightarrow> 'a Judgement" where
 "(((length \<phi>\<^sub>L) = 0) \<or> (i = 0)) \<Longrightarrow> canonicalJudgementRec \<psi> i \<phi>\<^sub>L P\<^sub>L \<B> = (Judgement 0 {} {})" |
@@ -55,7 +54,7 @@ function canonicalJudgementRec :: "Formula \<Rightarrow> nat \<Rightarrow> Formu
     )
   ) |
   (And \<psi>\<^sub>1 \<psi>\<^sub>2) \<Rightarrow> (let
-    childIndexes = (CoI i P\<^sub>L);
+    childIndexes = (CoI i P\<^sub>L); \<comment> \<open> This always returns two elements \<close>
     j = hd childIndexes;
     k = last childIndexes;
     \<J>\<^sub>0' = (canonicalJudgementRec \<psi>\<^sub>1 j \<phi>\<^sub>L P\<^sub>L \<B>);
@@ -88,91 +87,45 @@ fun canonicalJudgement :: "nat \<Rightarrow> Formula \<Rightarrow> 'a Structure 
 (*
 fun setOfValModels :: "Formula \<Rightarrow> 'a Structure \<Rightarrow> 'a Valuation set" where
 "setOfValModels \<phi> \<B> = {}"
-
-lemma canonical_judgement_lemma_set_of_val_models [simp] :
-  fixes \<phi> :: Formula
-  fixes \<B> :: "'a Structure"
-  fixes i :: nat
-  fixes \<J>\<^sub>c :: "'a Judgement"
-  assumes "(wfCPLInstance \<phi> \<B>)"
-  assumes "(i \<in> (setOfIndex (formulaToList \<phi>)))"
-  assumes "\<J>\<^sub>c = (canonicalJudgement i \<phi> \<B>)"
-  shows "(Funcs \<J>\<^sub>c) = (setOfValModels (FoI i (formulaToList \<phi>)) \<B>)"
-proof -
-  sorry
-qed
 *)
 
-(*
-lemma canonical_judgement_lemma_index [simp] :
-  fixes \<phi> :: Formula
-  fixes \<B> :: "'a Structure"
-  fixes i :: nat
-  fixes \<J>\<^sub>c :: "'a Judgement"
-  assumes "(wfCPLInstance \<phi> \<B>)"
-  assumes "(i \<in> (setOfIndex (formulaToList \<phi>)))"
-  assumes "\<J>\<^sub>c = (canonicalJudgement i \<phi> \<B>)"
-  shows "(Index \<J>\<^sub>c) = i"
-proof -
-  let ?formulaParentList = "buildFormulaParentList \<phi>"
-  obtain \<J>\<^sub>c where "\<J>\<^sub>c = (canonicalJudgement i \<phi> \<B>)" by simp
-  obtain \<phi>\<^sub>L where "\<phi>\<^sub>L = fst ?formulaParentList" by simp
-  obtain P\<^sub>L where "P\<^sub>L = snd ?formulaParentList" by simp
-  obtain \<psi> where "\<psi> = (FoI i \<phi>\<^sub>L)" by simp
-  show ?thesis sorry
-qed
-*)
+(* ======================== Canonical Judgement Lemmas ======================== *)
 
-(*
-lemma canonical_judgement_lemma_var_set [simp] :
+lemma canonical_judgement_is_always_well_formed [simp] : 
   fixes \<phi> :: Formula
   fixes \<B> :: "'a Structure"
   fixes i :: nat
   fixes \<J>\<^sub>c :: "'a Judgement"
   fixes \<phi>\<^sub>L :: "Formula list"
+  fixes P\<^sub>L :: "nat list"
   assumes "(wfCPLInstance \<phi> \<B>)"
-  assumes "(i \<in> (setOfIndex (formulaToList \<phi>)))"
+  assumes "(\<phi>\<^sub>L, P\<^sub>L) = (buildFormulaParentList \<phi>)"
+  assumes "(i \<in> (setOfIndex P\<^sub>L))"
   assumes "\<J>\<^sub>c = (canonicalJudgement i \<phi> \<B>)"
-  assumes "\<phi>\<^sub>L = (fst (buildFormulaParentList \<phi>))"
-  shows "(Vars \<J>\<^sub>c) = (freeVar (FoI i \<phi>\<^sub>L))"
+  shows "(wfJudgement \<J>\<^sub>c \<phi> \<B>)"
 proof -
-  let ?formulaParentList = "buildFormulaParentList \<phi>"
-  obtain \<J>\<^sub>c where "\<J>\<^sub>c = (canonicalJudgement i \<phi> \<B>)" by simp
-  obtain \<phi>\<^sub>L where "\<phi>\<^sub>L = fst ?formulaParentList" by simp
-  obtain P\<^sub>L where "P\<^sub>L = snd ?formulaParentList" by simp
   obtain \<psi> where "\<psi> = (FoI i \<phi>\<^sub>L)" by simp
-  show ?thesis sorry
+  thus ?thesis sorry
 qed
-*)
 
-lemma canonical_judgement_is_always_well_formed [simp] : "\<lbrakk>
-  (wfCPLInstance \<phi> \<B>);
-  (i \<in> (setOfIndex (snd (buildFormulaParentList \<phi>))))
-\<rbrakk> \<Longrightarrow> (wfJudgement (canonicalJudgement i \<phi> \<B>)) \<phi> \<B>"
-  apply (auto)
-  apply (simp_all add: Let_def)
-  sorry
-
-
-lemma canonical_judgement_lemma_is_derivable [simp] :
+lemma canonical_judgement_lemma_index [simp] :
   fixes \<phi> :: Formula
   fixes \<B> :: "'a Structure"
   fixes i :: nat
+  fixes \<J>\<^sub>c :: "'a Judgement"
+  fixes \<phi>\<^sub>L :: "Formula list"
+  fixes P\<^sub>L :: "nat list"
   assumes "(wfCPLInstance \<phi> \<B>)"
-  assumes "(i \<in> (setOfIndex (snd (buildFormulaParentList \<phi>))))"
-  shows "isDerivable \<phi> \<B> (canonicalJudgement i \<phi> \<B>)"
-proof -        
-  let ?formulaParentList = "buildFormulaParentList \<phi>"
-  obtain \<J>\<^sub>c where canonical_judgement: "\<J>\<^sub>c = (canonicalJudgement i \<phi> \<B>)" by simp
-  obtain \<phi>\<^sub>L where "\<phi>\<^sub>L = fst ?formulaParentList" by simp
-  obtain P\<^sub>L where "P\<^sub>L = snd ?formulaParentList" by simp
+  assumes "(\<phi>\<^sub>L, P\<^sub>L) = (buildFormulaParentList \<phi>)"
+  assumes "(i \<in> (setOfIndex P\<^sub>L))"
+  assumes "\<J>\<^sub>c = (canonicalJudgement i \<phi> \<B>)"
+  shows "(Index \<J>\<^sub>c) = i"
+proof -
   obtain \<psi> where "\<psi> = (FoI i \<phi>\<^sub>L)" by simp
-  show ?thesis sorry
+  thus ?thesis sorry
   (*proof (cases \<psi>)
     case (Atom r var_list)
-    have wf_judgement: "wfJudgement \<J>\<^sub>c \<phi> \<B>" sorry
-    have "isAtom \<J>\<^sub>c \<phi> \<B>" sorry
-    thus ?thesis using ATR wf_judgement assms(1) canonical_judgement by blast
+    thus ?thesis sorry
   next
     case (And \<psi>\<^sub>1 \<psi>\<^sub>2)
     then show ?thesis sorry
@@ -185,7 +138,98 @@ proof -
   qed*)
 qed
 
+lemma canonical_judgement_lemma_var_set [simp] :
+  fixes \<phi> :: Formula
+  fixes \<B> :: "'a Structure"
+  fixes i :: nat
+  fixes \<J>\<^sub>c :: "'a Judgement"
+  fixes \<phi>\<^sub>L :: "Formula list"
+  fixes P\<^sub>L :: "nat list"
+  assumes "(wfCPLInstance \<phi> \<B>)"
+  assumes "(\<phi>\<^sub>L, P\<^sub>L) = (buildFormulaParentList \<phi>)"
+  assumes "(i \<in> (setOfIndex P\<^sub>L))"
+  assumes "\<J>\<^sub>c = (canonicalJudgement i \<phi> \<B>)"
+  shows "(Vars \<J>\<^sub>c) = (freeVar (FoI i \<phi>\<^sub>L))"
+proof -
+  obtain \<psi> where "\<psi> = (FoI i \<phi>\<^sub>L)" by simp
+  thus ?thesis sorry
+  (*proof (cases \<psi>)
+    case (Atom r var_list)
+    thus ?thesis sorry
+  next
+    case (And \<psi>\<^sub>1 \<psi>\<^sub>2)
+    then show ?thesis sorry
+  next
+    case (Forall x \<psi>\<^sub>1)
+    then show ?thesis sorry
+  next
+    case (Exists x \<psi>\<^sub>1)
+    then show ?thesis sorry
+  qed*)
+qed
 
+(*
+lemma canonical_judgement_lemma_set_of_val_models [simp] :
+  fixes \<phi> :: Formula
+  fixes \<B> :: "'a Structure"
+  fixes i :: nat
+  fixes \<J>\<^sub>c :: "'a Judgement"
+  fixes \<phi>\<^sub>L :: "Formula list"
+  fixes P\<^sub>L :: "nat list"
+  assumes "(wfCPLInstance \<phi> \<B>)"
+  assumes "(\<phi>\<^sub>L, P\<^sub>L) = (buildFormulaParentList \<phi>)"
+  assumes "(i \<in> (setOfIndex P\<^sub>L))"
+  assumes "\<J>\<^sub>c = (canonicalJudgement i \<phi> \<B>)"
+  shows "(Funcs \<J>\<^sub>c) = (setOfValModels (FoI i (formulaToList \<phi>)) \<B>)"
+proof -
+  obtain \<J>\<^sub>c where canonical_judgement: "\<J>\<^sub>c = (canonicalJudgement i \<phi> \<B>)" by simp
+  obtain \<psi> where "\<psi> = (FoI i \<phi>\<^sub>L)" by simp
+  thus ?thesis sorry
+  (*proof (cases \<psi>)
+    case (Atom r var_list)
+    thus ?thesis sorry
+  next
+    case (And \<psi>\<^sub>1 \<psi>\<^sub>2)
+    then show ?thesis sorry
+  next
+    case (Forall x \<psi>\<^sub>1)
+    then show ?thesis sorry
+  next
+    case (Exists x \<psi>\<^sub>1)
+    then show ?thesis sorry
+  qed*)
+qed
+*)
+
+lemma canonical_judgement_lemma_is_derivable [simp] :
+  fixes \<phi> :: Formula
+  fixes \<B> :: "'a Structure"
+  fixes i :: nat
+  fixes \<J>\<^sub>c :: "'a Judgement"
+  fixes \<phi>\<^sub>L :: "Formula list"
+  fixes P\<^sub>L :: "nat list"
+  assumes "(wfCPLInstance \<phi> \<B>)"
+  assumes "(\<phi>\<^sub>L, P\<^sub>L) = (buildFormulaParentList \<phi>)"
+  assumes "(i \<in> (setOfIndex P\<^sub>L))"
+  assumes "\<J>\<^sub>c = (canonicalJudgement i \<phi> \<B>)"
+  shows "isDerivable \<phi> \<B> \<J>\<^sub>c"
+proof -        
+  obtain \<psi> where "\<psi> = (FoI i \<phi>\<^sub>L)" by simp
+  thus ?thesis sorry
+  (*proof (cases \<psi>)
+    case (Atom r var_list)
+    thus ?thesis sorry
+  next
+    case (And \<psi>\<^sub>1 \<psi>\<^sub>2)
+    then show ?thesis sorry
+  next
+    case (Forall x \<psi>\<^sub>1)
+    then show ?thesis sorry
+  next
+    case (Exists x \<psi>\<^sub>1)
+    then show ?thesis sorry
+  qed*)
+qed
 
 (* ================= Completeness Proof ================= *)
 
@@ -201,14 +245,16 @@ proof -
   have "((ran e) \<subseteq> (Univ \<B>))" by simp
   have "sentence \<phi>" using assms(1) by auto
   let ?formulaParentList = "buildFormulaParentList \<phi>"
+  obtain \<phi>\<^sub>L where "\<phi>\<^sub>L = fst ?formulaParentList" by simp
+  have "\<phi> = (FoI 1 \<phi>\<^sub>L)" by (metis \<open>\<phi>\<^sub>L = fst (buildFormulaParentList \<phi>)\<close> eq_fst_iff foi_first_index_is_always_the_root_formula) 
   obtain P\<^sub>L where "P\<^sub>L = snd ?formulaParentList" by simp
   have "(1 \<in> (setOfIndex P\<^sub>L))" using \<open>P\<^sub>L = snd (buildFormulaParentList \<phi>)\<close> one_is_always_in_set_of_index prod.collapse by blast
-  show ?thesis
+  thus ?thesis
   proof (cases \<phi>)
     case (Atom r var_list)
     have "(set var_list) = (freeVar \<phi>)" by (simp add: Atom)
     have "((freeVar \<phi>) \<subseteq> (dom e))" using \<open>sentence \<phi>\<close> by auto
-    then show ?thesis
+    thus ?thesis
     proof (cases "((Sig \<B>) r)")
       case None
       show ?thesis
@@ -229,29 +275,44 @@ proof -
           thus "False" using \<open>sentence \<phi>\<close> by blast 
         qed
       next
-        case True \<comment> \<open>He supuesto que aceptamos símbolos de relacion de aridad 0\<close>
+        case True \<comment> \<open> Note: I have made the assumption that we accept relationship symbols with arity=0 \<close>
         have "(length var_list) = 0" using \<open>sentence \<phi>\<close> \<open>set var_list = freeVar \<phi>\<close> by auto
         obtain \<J>\<^sub>c where "\<J>\<^sub>c = canonicalJudgement 1 \<phi> \<B>" by auto
-        have "isDerivable \<phi> \<B> \<J>\<^sub>c" using \<open>1 \<in> setOfIndex P\<^sub>L\<close> \<open>P\<^sub>L = snd (buildFormulaParentList \<phi>)\<close> \<open>\<J>\<^sub>c = canonicalJudgement 1 \<phi> \<B>\<close> assms(1) canonical_judgement_lemma_is_derivable by blast
-        have "\<J>\<^sub>c = (Judgement 1 {} {})" sorry
-        show ?thesis using \<open>\<J>\<^sub>c = NullJudgement\<close> \<open>isDerivable \<phi> \<B> \<J>\<^sub>c\<close> by blast
+        then have "isDerivable \<phi> \<B> \<J>\<^sub>c" using \<open>1 \<in> setOfIndex P\<^sub>L\<close> \<open>P\<^sub>L = snd (buildFormulaParentList \<phi>)\<close> assms(1) canonical_judgement_lemma_is_derivable prod.collapse by blast
+        have "(Index \<J>\<^sub>c) = 1" using \<open>1 \<in> setOfIndex P\<^sub>L\<close> \<open>P\<^sub>L = snd (buildFormulaParentList \<phi>)\<close> \<open>\<J>\<^sub>c = canonicalJudgement 1 \<phi> \<B>\<close> assms(1) canonical_judgement_lemma_index by blast 
+        have "(Vars \<J>\<^sub>c) = {}" by (metis \<open>1 \<in> setOfIndex P\<^sub>L\<close> \<open>P\<^sub>L = snd (buildFormulaParentList \<phi>)\<close> \<open>\<J>\<^sub>c = canonicalJudgement 1 \<phi> \<B>\<close> \<open>\<phi> = FoI 1 \<phi>\<^sub>L\<close> \<open>\<phi>\<^sub>L = fst (buildFormulaParentList \<phi>)\<close> \<open>freeVar \<phi> \<subseteq> dom (\<lambda>x. None)\<close> assms(1) bot.extremum_uniqueI canonical_judgement_lemma_var_set dom_empty prod.exhaust_sel) 
+        have "(Funcs \<J>\<^sub>c) = {}" sorry
+        have "\<J>\<^sub>c = (Judgement 1 {} {})" by (metis Judgement.collapse \<open>Funcs \<J>\<^sub>c = {}\<close> \<open>Index \<J>\<^sub>c = 1\<close> \<open>Vars \<J>\<^sub>c = {}\<close>) 
+        thus ?thesis using \<open>isDerivable \<phi> \<B> \<J>\<^sub>c\<close> by blast
       qed
     qed
   next
     case (And \<psi>\<^sub>1 \<psi>\<^sub>2)
     obtain \<J>\<^sub>c where "\<J>\<^sub>c = canonicalJudgement 1 \<phi> \<B>" by auto
-    have "isDerivable \<phi> \<B> \<J>\<^sub>c" sorry
-    then show ?thesis sorry
+    then have "isDerivable \<phi> \<B> \<J>\<^sub>c" using \<open>1 \<in> setOfIndex P\<^sub>L\<close> \<open>P\<^sub>L = snd (buildFormulaParentList \<phi>)\<close> assms(1) canonical_judgement_lemma_is_derivable prod.collapse by blast
+    have "(Index \<J>\<^sub>c) = 1" using \<open>1 \<in> setOfIndex P\<^sub>L\<close> \<open>P\<^sub>L = snd (buildFormulaParentList \<phi>)\<close> \<open>\<J>\<^sub>c = canonicalJudgement 1 \<phi> \<B>\<close> assms(1) canonical_judgement_lemma_index by blast 
+    have "(Vars \<J>\<^sub>c) = {}" by (metis \<open>1 \<in> setOfIndex P\<^sub>L\<close> \<open>P\<^sub>L = snd (buildFormulaParentList \<phi>)\<close> \<open>\<J>\<^sub>c = canonicalJudgement 1 \<phi> \<B>\<close> \<open>\<phi> = FoI 1 \<phi>\<^sub>L\<close> \<open>\<phi>\<^sub>L = fst (buildFormulaParentList \<phi>)\<close> \<open>sentence \<phi>\<close> assms(1) canonical_judgement_lemma_var_set prod.collapse sentence.elims(2)) 
+    have "(Funcs \<J>\<^sub>c) = {}" sorry
+    have "\<J>\<^sub>c = (Judgement 1 {} {})" by (metis Judgement.collapse \<open>Funcs \<J>\<^sub>c = {}\<close> \<open>Index \<J>\<^sub>c = 1\<close> \<open>Vars \<J>\<^sub>c = {}\<close>) 
+    thus ?thesis using \<open>isDerivable \<phi> \<B> \<J>\<^sub>c\<close> by auto
   next
     case (Forall x \<psi>)
     obtain \<J>\<^sub>c where "\<J>\<^sub>c = canonicalJudgement 1 \<phi> \<B>" by auto
-    have "isDerivable \<phi> \<B> \<J>\<^sub>c" sorry
-    then show ?thesis sorry
+    then have "isDerivable \<phi> \<B> \<J>\<^sub>c" using \<open>1 \<in> setOfIndex P\<^sub>L\<close> \<open>P\<^sub>L = snd (buildFormulaParentList \<phi>)\<close> assms(1) canonical_judgement_lemma_is_derivable prod.collapse by blast 
+    have "(Index \<J>\<^sub>c) = 1" using \<open>1 \<in> setOfIndex P\<^sub>L\<close> \<open>P\<^sub>L = snd (buildFormulaParentList \<phi>)\<close> \<open>\<J>\<^sub>c = canonicalJudgement 1 \<phi> \<B>\<close> assms(1) canonical_judgement_lemma_index by blast 
+    have "(Vars \<J>\<^sub>c) = {}" by (metis \<open>1 \<in> setOfIndex P\<^sub>L\<close> \<open>P\<^sub>L = snd (buildFormulaParentList \<phi>)\<close> \<open>\<J>\<^sub>c = canonicalJudgement 1 \<phi> \<B>\<close> \<open>\<phi> = FoI 1 \<phi>\<^sub>L\<close> \<open>\<phi>\<^sub>L = fst (buildFormulaParentList \<phi>)\<close> \<open>sentence \<phi>\<close> assms(1) canonical_judgement_lemma_var_set prod.collapse sentence.elims(2)) 
+    have "(Funcs \<J>\<^sub>c) = {}" sorry
+    have "\<J>\<^sub>c = (Judgement 1 {} {})" by (metis Judgement.collapse \<open>Funcs \<J>\<^sub>c = {}\<close> \<open>Index \<J>\<^sub>c = 1\<close> \<open>Vars \<J>\<^sub>c = {}\<close>) 
+    thus ?thesis using \<open>isDerivable \<phi> \<B> \<J>\<^sub>c\<close> by auto  
   next
     case (Exists x \<psi>)
     obtain \<J>\<^sub>c where "\<J>\<^sub>c = canonicalJudgement 1 \<phi> \<B>" by auto
-    have "isDerivable \<phi> \<B> \<J>\<^sub>c" sorry
-    then show ?thesis sorry
+    then have "isDerivable \<phi> \<B> \<J>\<^sub>c" using \<open>1 \<in> setOfIndex P\<^sub>L\<close> \<open>P\<^sub>L = snd (buildFormulaParentList \<phi>)\<close> assms(1) canonical_judgement_lemma_is_derivable prod.collapse by blast 
+    have "(Index \<J>\<^sub>c) = 1" using \<open>1 \<in> setOfIndex P\<^sub>L\<close> \<open>P\<^sub>L = snd (buildFormulaParentList \<phi>)\<close> \<open>\<J>\<^sub>c = canonicalJudgement 1 \<phi> \<B>\<close> assms(1) canonical_judgement_lemma_index by blast
+    have "(Vars \<J>\<^sub>c) = {}" by (metis \<open>1 \<in> setOfIndex P\<^sub>L\<close> \<open>P\<^sub>L = snd (buildFormulaParentList \<phi>)\<close> \<open>\<J>\<^sub>c = canonicalJudgement 1 \<phi> \<B>\<close> \<open>\<phi> = FoI 1 \<phi>\<^sub>L\<close> \<open>\<phi>\<^sub>L = fst (buildFormulaParentList \<phi>)\<close> \<open>sentence \<phi>\<close> assms(1) canonical_judgement_lemma_var_set prod.collapse sentence.elims(2)) 
+    have "(Funcs \<J>\<^sub>c) = {}" sorry
+    have "\<J>\<^sub>c = (Judgement 1 {} {})" by (metis Judgement.collapse \<open>Funcs \<J>\<^sub>c = {}\<close> \<open>Index \<J>\<^sub>c = 1\<close> \<open>Vars \<J>\<^sub>c = {}\<close>) 
+    thus ?thesis using \<open>isDerivable \<phi> \<B> \<J>\<^sub>c\<close> by auto
   qed
 qed
 

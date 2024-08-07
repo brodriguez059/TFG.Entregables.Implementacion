@@ -47,7 +47,7 @@ fun dualProjectJudgementValuations :: "'a Judgement \<Rightarrow> 'a Judgement  
     f \<in> (Funcs \<J>\<^sub>1). ( \<forall>b \<in> (Univ \<B>). f(y \<mapsto> b) \<in> (Funcs \<J>\<^sub>2))
 }"
 
-fun mapValuation :: "'a Valuation \<Rightarrow> Variable list \<Rightarrow> 'a list" where \<comment> \<open> TODO: Explain this and change in more detail \<close>
+fun mapValuation :: "'a Valuation \<Rightarrow> Variable list \<Rightarrow> 'a list" where \<comment> \<open> TODO: Explain this with more detail \<close>
 "mapValuation f vs = (if ((set vs) \<subseteq> (dom f))
   then [the (f v). v \<leftarrow> vs]
   else []

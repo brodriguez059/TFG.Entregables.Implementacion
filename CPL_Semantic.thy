@@ -41,6 +41,25 @@ fun buildFormulaParentList :: "Formula \<Rightarrow> (Formula list) \<times> (Pa
   )
 )"
 
+fun setOfIndex :: "nat list \<Rightarrow> nat set" where
+"setOfIndex P\<^sub>L = { 1 .. (length P\<^sub>L) }"
+
+fun FoI :: "nat \<Rightarrow> Formula list \<Rightarrow> Formula" where
+"FoI i \<phi>\<^sub>L = \<phi>\<^sub>L ! (i - 1)"
+
+fun CoIIndexed :: "nat \<Rightarrow> ParentIndex list \<Rightarrow> nat \<Rightarrow> ChildIndexes" where
+"CoIIndexed i [] k = []" |
+"CoIIndexed i (p#ps) k = (if (i = p)
+  then ((k+1) # (CoIIndexed i ps (k+1)))
+  else (CoIIndexed i ps (k+1))
+)"
+
+fun CoI :: "nat \<Rightarrow> ParentIndex list \<Rightarrow> ChildIndexes" where
+"CoI i [] = []" |
+"CoI i P\<^sub>L = (CoIIndexed i P\<^sub>L 0)"
+
+(* ======================== Auxiliary Lemmas ======================== *)
+
 lemma formula_list_is_never_empty [simp] :
   fixes \<phi> :: Formula
   fixes \<phi>\<^sub>L :: "Formula list"
@@ -97,9 +116,6 @@ next
   then show ?thesis by simp
 qed
 
-fun setOfIndex :: "nat list \<Rightarrow> nat set" where
-"setOfIndex P\<^sub>L = { 1 .. (length P\<^sub>L) }"
-
 lemma set_of_index_never_contains_zero [simp] : "\<lbrakk>
   (\<phi>\<^sub>L, P\<^sub>L) = (buildFormulaParentList \<phi>)
 \<rbrakk> \<Longrightarrow> (0 \<notin> (setOfIndex P\<^sub>L))"
@@ -117,19 +133,33 @@ lemma one_is_always_in_set_of_index : "\<lbrakk>
   apply (auto)
   by (meson Suc_leI parent_list_is_never_empty)
 
-fun FoI :: "nat \<Rightarrow> Formula list \<Rightarrow> Formula" where
-"FoI i \<phi>\<^sub>L = \<phi>\<^sub>L ! (i - 1)"
-
-fun CoIIndexed :: "nat \<Rightarrow> ParentIndex list \<Rightarrow> nat \<Rightarrow> ChildIndexes" where
-"CoIIndexed i [] k = []" |
-"CoIIndexed i (p#ps) k = (if (i = p)
-  then ((k+1) # (CoIIndexed i ps (k+1)))
-  else (CoIIndexed i ps (k+1))
-)"
-
-fun CoI :: "nat \<Rightarrow> ParentIndex list \<Rightarrow> ChildIndexes" where
-"CoI i [] = []" |
-"CoI i P\<^sub>L = (CoIIndexed i P\<^sub>L 0)"
+lemma foi_first_index_is_always_the_root_formula [simp] : 
+  fixes \<phi> :: Formula
+  fixes \<phi>\<^sub>L :: "Formula list"
+  fixes P\<^sub>L :: "nat list"
+  assumes "(\<phi>\<^sub>L, P\<^sub>L) = (buildFormulaParentList \<phi>)"
+  shows "\<phi> = (FoI 1 \<phi>\<^sub>L)"
+proof (cases \<phi>)
+  case (Atom r var_list)
+  have "(length \<phi>\<^sub>L) = 1" using Atom assms by auto
+  thus ?thesis using Atom assms by auto
+next
+  case (And \<psi>\<^sub>1 \<psi>\<^sub>2)
+  obtain \<phi>\<^sub>L_\<psi>\<^sub>1 where "\<phi>\<^sub>L_\<psi>\<^sub>1 = (fst (buildFormulaParentList \<psi>\<^sub>1))" by auto
+  obtain \<phi>\<^sub>L_\<psi>\<^sub>2 where "\<phi>\<^sub>L_\<psi>\<^sub>2 = (fst (buildFormulaParentList \<psi>\<^sub>2))" by auto
+  then have "\<phi>\<^sub>L = ((And \<psi>\<^sub>1 \<psi>\<^sub>2) # \<phi>\<^sub>L_\<psi>\<^sub>1 @ \<phi>\<^sub>L_\<psi>\<^sub>2)" by (metis (no_types, lifting) And Pair_inject \<open>\<phi>\<^sub>L_\<psi>\<^sub>1 = fst (buildFormulaParentList \<psi>\<^sub>1)\<close> assms buildFormulaParentList.simps(4) split_def)
+  thus ?thesis by (simp add: And) 
+next
+  case (Forall x \<psi>)
+  obtain \<psi>\<^sub>L where "\<psi>\<^sub>L = (fst (buildFormulaParentList \<psi>))" by auto
+  then have "\<phi>\<^sub>L = ((Forall x \<psi>) # \<psi>\<^sub>L)" by (metis (mono_tags, lifting) Forall assms buildFormulaParentList.simps(2) case_prod_unfold fst_conv)
+  thus ?thesis by (simp add: Forall) 
+next
+  case (Exists x \<psi>)
+  obtain \<psi>\<^sub>L where "\<psi>\<^sub>L = (fst (buildFormulaParentList \<psi>))" by auto
+  then have "\<phi>\<^sub>L = ((Exists x \<psi>) # \<psi>\<^sub>L)" by (metis (mono_tags, lifting) Exists assms buildFormulaParentList.simps(3) case_prod_unfold fst_conv)
+  thus ?thesis by (simp add: Exists)
+qed
 
 (* ======================== Well-Formedness Functions ======================== *)
 
@@ -137,7 +167,7 @@ fun wfFormula :: "Formula \<Rightarrow> Signature \<Rightarrow> bool" where
 "wfFormula (Atom r var_list) \<S> = (
     case (\<S> r) of
     None \<Rightarrow> False |
-    (Some n) \<Rightarrow> ((length var_list) = n) \<comment> \<open>He supuesto que aceptamos símbolos de relacion de aridad 0\<close>
+    (Some n) \<Rightarrow> ((length var_list) = n) \<comment> \<open> Note: I have made the assumption that we accept relationship symbols with arity=0 \<close>
 )" |
 "wfFormula (And \<phi>\<^sub>1 \<phi>\<^sub>2) \<S> = ((wfFormula \<phi>\<^sub>1 \<S>) \<and> (wfFormula \<phi>\<^sub>2 \<S>))" |
 "wfFormula (Forall x \<phi>) \<S> = (wfFormula \<phi> \<S>)" |

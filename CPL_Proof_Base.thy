@@ -15,7 +15,7 @@ abbreviation "EmptyJudgement \<equiv> (Judgement 1 {} {e})"
 
 (* ======================== Auxiliary Functions ======================== *)
 
-fun isParent :: "'a Judgement \<Rightarrow> 'a Judgement \<Rightarrow> Formula list \<Rightarrow> nat list \<Rightarrow> bool" where (*TODO: Fix*)
+fun isParent :: "'a Judgement \<Rightarrow> 'a Judgement \<Rightarrow> Formula list \<Rightarrow> nat list \<Rightarrow> bool" where
 "isParent \<J>\<^sub>1 \<J>\<^sub>2 \<phi>\<^sub>L P\<^sub>L = (
   let
     \<psi>\<^sub>1 = (FoI (Index \<J>\<^sub>1) \<phi>\<^sub>L);
