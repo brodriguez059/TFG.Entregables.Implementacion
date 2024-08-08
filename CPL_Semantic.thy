@@ -34,8 +34,7 @@ fun buildFormulaParentList :: "Formula \<Rightarrow> (Formula list) \<times> (Pa
     (\<phi>\<^sub>L_\<phi>\<^sub>1, P\<^sub>L_\<phi>\<^sub>1) = (buildFormulaParentList \<phi>\<^sub>1);
     new_P\<^sub>L_\<phi>\<^sub>1 = (map ((+) 1) P\<^sub>L_\<phi>\<^sub>1);
     (\<phi>\<^sub>L_\<phi>\<^sub>2, P\<^sub>L_\<phi>\<^sub>2) = (buildFormulaParentList \<phi>\<^sub>2);
-    temp_new_P\<^sub>L_\<phi>\<^sub>2 = (map ((+) (1 + (length P\<^sub>L_\<phi>\<^sub>1))) P\<^sub>L_\<phi>\<^sub>2);
-    new_P\<^sub>L_\<phi>\<^sub>2 = 1 # (tl temp_new_P\<^sub>L_\<phi>\<^sub>2)
+    new_P\<^sub>L_\<phi>\<^sub>2 = 1 # (tl (map ((+) (1 + (length P\<^sub>L_\<phi>\<^sub>1))) P\<^sub>L_\<phi>\<^sub>2))
   in (
     ((And \<phi>\<^sub>1 \<phi>\<^sub>2) # \<phi>\<^sub>L_\<phi>\<^sub>1 @ \<phi>\<^sub>L_\<phi>\<^sub>2, 0 # new_P\<^sub>L_\<phi>\<^sub>1 @ new_P\<^sub>L_\<phi>\<^sub>2)
   )
@@ -59,6 +58,9 @@ fun CoI :: "nat \<Rightarrow> ParentIndex list \<Rightarrow> ChildIndexes" where
 "CoI i P\<^sub>L = (CoIIndexed i P\<^sub>L 0)"
 
 (* ======================== Auxiliary Lemmas ======================== *)
+
+lemma [simp] : "\<lbrakk>(length xs) > 0\<rbrakk> \<Longrightarrow> (length (x # (tl xs))) = (length xs)"
+  by (auto)
 
 lemma formula_list_is_never_empty [simp] :
   fixes \<phi> :: Formula
@@ -116,6 +118,42 @@ next
   then show ?thesis by simp
 qed
 
+lemma formula_and_parent_list_are_always_the_same_length [simp] :
+  fixes \<phi> :: Formula
+  shows "(length (fst (buildFormulaParentList \<phi>))) = (length (snd (buildFormulaParentList \<phi>)))" (is "?P \<phi>")
+proof (induction \<phi>)
+  case (Atom r var_list)
+  show ?case by simp
+next
+  case (Forall x \<psi>)
+  assume IH: "?P \<psi>"
+  thus ?case by (smt (verit, ccfv_threshold) IH buildFormulaParentList.simps(2) case_prod_unfold fst_conv length_Cons length_map snd_conv)
+next
+  case (Exists x \<psi>)
+  assume IH: "?P \<psi>"
+  thus ?case by (smt (verit, ccfv_threshold) IH buildFormulaParentList.simps(3) case_prod_unfold fst_conv length_Cons length_map snd_conv)
+next
+  case (And \<psi>\<^sub>1 \<psi>\<^sub>2)
+  assume IH1: "?P \<psi>\<^sub>1"
+  assume IH2: "?P \<psi>\<^sub>2"
+  obtain \<phi>\<^sub>L P\<^sub>L where "(\<phi>\<^sub>L, P\<^sub>L) = (buildFormulaParentList (And \<psi>\<^sub>1 \<psi>\<^sub>2))" by (metis old.prod.exhaust)
+  obtain \<phi>\<^sub>L_\<psi>\<^sub>1 P\<^sub>L_\<psi>\<^sub>1 where "(\<phi>\<^sub>L_\<psi>\<^sub>1, P\<^sub>L_\<psi>\<^sub>1) = (buildFormulaParentList \<psi>\<^sub>1)" by (metis old.prod.exhaust)
+  have "(length \<phi>\<^sub>L_\<psi>\<^sub>1) = (length P\<^sub>L_\<psi>\<^sub>1)" by (metis IH1 \<open>(\<phi>\<^sub>L_\<psi>\<^sub>1, P\<^sub>L_\<psi>\<^sub>1) = buildFormulaParentList \<psi>\<^sub>1\<close> fst_conv snd_conv)
+  obtain \<phi>\<^sub>L_\<psi>\<^sub>2 P\<^sub>L_\<psi>\<^sub>2 where "(\<phi>\<^sub>L_\<psi>\<^sub>2, P\<^sub>L_\<psi>\<^sub>2) = (buildFormulaParentList \<psi>\<^sub>2)" by (metis old.prod.exhaust)
+  have "(length \<phi>\<^sub>L_\<psi>\<^sub>2) = (length P\<^sub>L_\<psi>\<^sub>2)" by (metis IH2 \<open>(\<phi>\<^sub>L_\<psi>\<^sub>2, P\<^sub>L_\<psi>\<^sub>2) = buildFormulaParentList \<psi>\<^sub>2\<close> fst_conv snd_conv)
+  have "\<phi>\<^sub>L = ((And \<psi>\<^sub>1 \<psi>\<^sub>2) # \<phi>\<^sub>L_\<psi>\<^sub>1 @ \<phi>\<^sub>L_\<psi>\<^sub>2)" by (metis (mono_tags, lifting) \<open>(\<phi>\<^sub>L, P\<^sub>L) = buildFormulaParentList (And \<psi>\<^sub>1 \<psi>\<^sub>2)\<close> \<open>(\<phi>\<^sub>L_\<psi>\<^sub>1, P\<^sub>L_\<psi>\<^sub>1) = buildFormulaParentList \<psi>\<^sub>1\<close> \<open>(\<phi>\<^sub>L_\<psi>\<^sub>2, P\<^sub>L_\<psi>\<^sub>2) = buildFormulaParentList \<psi>\<^sub>2\<close> buildFormulaParentList.simps(4) fst_conv split_def)
+  have "(length \<phi>\<^sub>L) = (1 + (length \<phi>\<^sub>L_\<psi>\<^sub>1) + (length \<phi>\<^sub>L_\<psi>\<^sub>2))" by (simp add: \<open>\<phi>\<^sub>L = And \<psi>\<^sub>1 \<psi>\<^sub>2 # \<phi>\<^sub>L_\<psi>\<^sub>1 @ \<phi>\<^sub>L_\<psi>\<^sub>2\<close>)
+  fix new_P\<^sub>L_\<psi>\<^sub>1 temp_new_P\<^sub>L_\<psi>\<^sub>2 new_P\<^sub>L_\<psi>\<^sub>2
+  obtain new_P\<^sub>L_\<psi>\<^sub>1 where "new_P\<^sub>L_\<psi>\<^sub>1 = (map ((+) 1) P\<^sub>L_\<psi>\<^sub>1)" by auto
+  have "(length new_P\<^sub>L_\<psi>\<^sub>1) = (length P\<^sub>L_\<psi>\<^sub>1)" by (simp add: \<open>new_P\<^sub>L_\<psi>\<^sub>1 = map ((+) 1) P\<^sub>L_\<psi>\<^sub>1\<close>) 
+  obtain new_P\<^sub>L_\<psi>\<^sub>2 where "new_P\<^sub>L_\<psi>\<^sub>2 = 1 # (tl (map ((+) (1 + (length P\<^sub>L_\<psi>\<^sub>1))) P\<^sub>L_\<psi>\<^sub>2))" by auto
+  have "(length new_P\<^sub>L_\<psi>\<^sub>2) = (length P\<^sub>L_\<psi>\<^sub>2)" using \<open>(\<phi>\<^sub>L_\<psi>\<^sub>2, P\<^sub>L_\<psi>\<^sub>2) = buildFormulaParentList \<psi>\<^sub>2\<close> \<open>new_P\<^sub>L_\<psi>\<^sub>2 = 1 # tl (map ((+) (1 + length P\<^sub>L_\<psi>\<^sub>1)) P\<^sub>L_\<psi>\<^sub>2)\<close> parent_list_is_never_empty by auto 
+  have "P\<^sub>L = (0 # new_P\<^sub>L_\<psi>\<^sub>1 @ new_P\<^sub>L_\<psi>\<^sub>2)" by (metis (mono_tags, lifting) \<open>(\<phi>\<^sub>L, P\<^sub>L) = buildFormulaParentList (And \<psi>\<^sub>1 \<psi>\<^sub>2)\<close> \<open>(\<phi>\<^sub>L_\<psi>\<^sub>1, P\<^sub>L_\<psi>\<^sub>1) = buildFormulaParentList \<psi>\<^sub>1\<close> \<open>(\<phi>\<^sub>L_\<psi>\<^sub>2, P\<^sub>L_\<psi>\<^sub>2) = buildFormulaParentList \<psi>\<^sub>2\<close> \<open>new_P\<^sub>L_\<psi>\<^sub>1 = map ((+) 1) P\<^sub>L_\<psi>\<^sub>1\<close> \<open>new_P\<^sub>L_\<psi>\<^sub>2 = 1 # tl (map ((+) (1 + length P\<^sub>L_\<psi>\<^sub>1)) P\<^sub>L_\<psi>\<^sub>2)\<close> buildFormulaParentList.simps(4) prod.sel(2) split_def)
+  have "(length P\<^sub>L) = (1 + (length new_P\<^sub>L_\<psi>\<^sub>1) + (length new_P\<^sub>L_\<psi>\<^sub>2))" using \<open>P\<^sub>L = 0 # new_P\<^sub>L_\<psi>\<^sub>1 @ new_P\<^sub>L_\<psi>\<^sub>2\<close> by auto
+  have "(length \<phi>\<^sub>L) = (length P\<^sub>L)" by (simp add: \<open>length P\<^sub>L = 1 + length new_P\<^sub>L_\<psi>\<^sub>1 + length new_P\<^sub>L_\<psi>\<^sub>2\<close> \<open>length \<phi>\<^sub>L = 1 + length \<phi>\<^sub>L_\<psi>\<^sub>1 + length \<phi>\<^sub>L_\<psi>\<^sub>2\<close> \<open>length \<phi>\<^sub>L_\<psi>\<^sub>1 = length P\<^sub>L_\<psi>\<^sub>1\<close> \<open>length \<phi>\<^sub>L_\<psi>\<^sub>2 = length P\<^sub>L_\<psi>\<^sub>2\<close> \<open>length new_P\<^sub>L_\<psi>\<^sub>1 = length P\<^sub>L_\<psi>\<^sub>1\<close> \<open>length new_P\<^sub>L_\<psi>\<^sub>2 = length P\<^sub>L_\<psi>\<^sub>2\<close>)
+  show ?case by (metis \<open>(\<phi>\<^sub>L, P\<^sub>L) = buildFormulaParentList (And \<psi>\<^sub>1 \<psi>\<^sub>2)\<close> \<open>length \<phi>\<^sub>L = length P\<^sub>L\<close> fst_conv snd_conv)
+qed
+
 lemma set_of_index_never_contains_zero [simp] : "\<lbrakk>
   (\<phi>\<^sub>L, P\<^sub>L) = (buildFormulaParentList \<phi>)
 \<rbrakk> \<Longrightarrow> (0 \<notin> (setOfIndex P\<^sub>L))"
@@ -133,12 +171,12 @@ lemma one_is_always_in_set_of_index : "\<lbrakk>
   apply (auto)
   by (meson Suc_leI parent_list_is_never_empty)
 
-lemma foi_first_index_is_always_the_root_formula [simp] : 
+lemma formula_list_element_is_always_the_root_formula [simp] : 
   fixes \<phi> :: Formula
   fixes \<phi>\<^sub>L :: "Formula list"
   fixes P\<^sub>L :: "nat list"
   assumes "(\<phi>\<^sub>L, P\<^sub>L) = (buildFormulaParentList \<phi>)"
-  shows "\<phi> = (FoI 1 \<phi>\<^sub>L)"
+  shows "\<phi> = (hd \<phi>\<^sub>L)"
 proof (cases \<phi>)
   case (Atom r var_list)
   have "(length \<phi>\<^sub>L) = 1" using Atom assms by auto
@@ -160,6 +198,11 @@ next
   then have "\<phi>\<^sub>L = ((Exists x \<psi>) # \<psi>\<^sub>L)" by (metis (mono_tags, lifting) Exists assms buildFormulaParentList.simps(3) case_prod_unfold fst_conv)
   thus ?thesis by (simp add: Exists)
 qed
+
+lemma foi_first_index_is_always_the_root_formula [simp] : "\<phi> = (FoI 1 (fst (buildFormulaParentList \<phi>)))"
+  apply (auto)
+  by (metis formula_and_parent_list_are_always_the_same_length formula_list_element_is_always_the_root_formula hd_conv_nth length_greater_0_conv parent_list_is_never_empty prod.collapse)
+
 
 (* ======================== Well-Formedness Functions ======================== *)
 
@@ -187,12 +230,99 @@ fun wfStructure :: "'a Structure \<Rightarrow> bool" where
   )
 )"
 
-fun wfCPLInstance :: "Formula \<Rightarrow> 'a Structure \<Rightarrow> bool" where
-"wfCPLInstance \<phi> \<B> = (
-  (sentence \<phi>) \<and>  
+fun wfCPLFormula :: "Formula \<Rightarrow> 'a Structure \<Rightarrow> bool" where
+"wfCPLFormula \<phi> \<B> = (
   (wfStructure \<B>) \<and>
   (wfFormula \<phi> (Sig \<B>))
 )"
+
+fun wfCPLInstance :: "Formula \<Rightarrow> 'a Structure \<Rightarrow> bool" where
+"wfCPLInstance \<phi> \<B> = (
+  (sentence \<phi>) \<and>  
+  (wfCPLFormula \<phi> \<B>)
+)"
+
+(* ======================== Well-Formedness Lemmas ======================== *)
+
+lemma wf_atom_in_wf_structure_always_has_an_interpretation_for_its_relation [simp] : "\<lbrakk>
+  (wfCPLFormula (Atom r var_list) \<B>)
+\<rbrakk> \<Longrightarrow> (((Interp \<B>) r) \<noteq> None)"
+  apply (auto)
+  by (smt (z3) Structure.sel(1) Structure.sel(3) case_optionE domIff option.simps(3) wfStructure.elims(2))
+
+lemma well_formedness_breaks_with_atom [simp] : "\<lbrakk>
+  (\<not> (wfCPLFormula (Atom r var_list) \<B>));
+  (containsSubformulaInTree (Atom r var_list) \<phi>)
+\<rbrakk> \<Longrightarrow> (\<not> (wfCPLFormula \<phi> \<B>))"
+  by (auto)
+
+lemma well_formedness_carries_to_atom [simp] : "\<lbrakk>
+  ((wfCPLFormula \<phi> \<B>));
+  (containsSubformulaInTree (Atom r var_list) \<phi>)
+\<rbrakk> \<Longrightarrow> ((wfCPLFormula (Atom r var_list) \<B>))"
+  by (auto)
+
+lemma formula_list_maintains_well_formedness [simp] :
+  fixes \<phi> :: Formula
+  assumes "wfCPLFormula \<phi> \<B>"
+  shows "( \<forall>\<psi>. \<psi> \<in> (set (fst (buildFormulaParentList \<phi>))) \<longrightarrow> (wfCPLFormula \<psi> \<B>) )" (is "?P \<phi>")
+proof (induct \<phi>) \<comment> \<open> TODO: Terminar y fixear, puede que HI no sea lo más adecuado aquí \<close>
+  case (Atom r var_list)
+  have "[(Atom r var_list)] = (fst (buildFormulaParentList (Atom r var_list)))" using Atom by auto
+  have "(wfStructure \<B>)" using assms by auto
+  have "(wfFormula (Atom r var_list) (Sig \<B>))" sorry
+  have "wfCPLFormula (Atom r var_list) \<B>" using \<open>wfFormula (Atom r var_list) (Sig \<B>)\<close> \<open>wfStructure \<B>\<close> by force
+  have "?P (Atom r var_list)" using \<open>wfCPLFormula (Atom r var_list) \<B>\<close> by auto
+  thus ?case by blast
+next
+  case (Forall x \<psi>)
+  assume IH: "?P \<psi>"
+  obtain \<phi>\<^sub>L where "\<phi>\<^sub>L = (fst (buildFormulaParentList (Forall x \<psi>)))" by simp 
+  have "(Forall x \<psi>) = (hd \<phi>\<^sub>L)" by (metis FoI.simps One_nat_def \<open>\<phi>\<^sub>L = fst (buildFormulaParentList (Forall x \<psi>))\<close> add_diff_cancel_left' foi_first_index_is_always_the_root_formula formula_and_parent_list_are_always_the_same_length hd_conv_nth less_numeral_extra(3) list.size(3) parent_list_is_never_empty plus_1_eq_Suc prod.collapse)
+  have "wfCPLFormula (Forall x \<psi>) \<B>" by (metis FoI.simps IH cancel_comm_monoid_add_class.diff_cancel foi_first_index_is_always_the_root_formula formula_list_is_never_empty hd_conv_nth insert_iff list.exhaust_sel list.simps(15) list.size(3) nat_less_le surjective_pairing wfCPLFormula.elims(1) wfFormula.simps(3))
+  show ?case by (metis (mono_tags, lifting) IH \<open>wfCPLFormula (Forall x \<psi>) \<B>\<close> buildFormulaParentList.simps(2) case_prod_unfold fst_conv insert_iff list.simps(15))
+next
+  case (Exists x \<psi>)
+  assume IH: "?P \<psi>"
+  obtain \<phi>\<^sub>L where "\<phi>\<^sub>L = (fst (buildFormulaParentList (Exists x \<psi>)))" by simp
+  have "(Exists x \<psi>) = hd \<phi>\<^sub>L" by (metis FoI.simps One_nat_def \<open>\<phi>\<^sub>L = fst (buildFormulaParentList (Exists x \<psi>))\<close> add_diff_cancel_left' foi_first_index_is_always_the_root_formula formula_and_parent_list_are_always_the_same_length hd_conv_nth less_numeral_extra(3) list.size(3) parent_list_is_never_empty plus_1_eq_Suc prod.collapse)
+  have "wfCPLFormula (Exists x \<psi>) \<B>" by (metis FoI.simps IH cancel_comm_monoid_add_class.diff_cancel foi_first_index_is_always_the_root_formula formula_list_is_never_empty hd_conv_nth in_set_member less_numeral_extra(3) list.exhaust_sel list.size(3) member_rec(1) prod.collapse wfCPLFormula.elims(1) wfFormula.simps(4))
+  thus ?case by (metis (mono_tags, lifting) IH buildFormulaParentList.simps(3) case_prod_unfold fst_conv in_set_member member_rec(1))
+next
+  case (And \<psi>\<^sub>1 \<psi>\<^sub>2)
+  assume IH1: "?P \<psi>\<^sub>1"
+  assume IH2: "?P \<psi>\<^sub>2"
+  obtain \<phi>\<^sub>L where "\<phi>\<^sub>L = (fst (buildFormulaParentList (And \<psi>\<^sub>1 \<psi>\<^sub>2)))" by blast
+  obtain \<phi>\<^sub>L_\<phi>\<^sub>1 where "\<phi>\<^sub>L_\<phi>\<^sub>1 = (fst (buildFormulaParentList \<psi>\<^sub>1))" by blast
+  obtain \<phi>\<^sub>L_\<phi>\<^sub>2 where "\<phi>\<^sub>L_\<phi>\<^sub>2 = (fst (buildFormulaParentList \<psi>\<^sub>2))" by blast
+  have "\<phi>\<^sub>L = ((And \<psi>\<^sub>1 \<psi>\<^sub>2) # \<phi>\<^sub>L_\<phi>\<^sub>1 @ \<phi>\<^sub>L_\<phi>\<^sub>2)" by (metis (mono_tags, lifting) \<open>\<phi>\<^sub>L = fst (buildFormulaParentList (And \<psi>\<^sub>1 \<psi>\<^sub>2))\<close> \<open>\<phi>\<^sub>L_\<phi>\<^sub>1 = fst (buildFormulaParentList \<psi>\<^sub>1)\<close> \<open>\<phi>\<^sub>L_\<phi>\<^sub>2 = fst (buildFormulaParentList \<psi>\<^sub>2)\<close> buildFormulaParentList.simps(4) case_prod_unfold fst_conv) 
+  have "(And \<psi>\<^sub>1 \<psi>\<^sub>2) = hd \<phi>\<^sub>L" by (metis FoI.simps One_nat_def \<open>\<phi>\<^sub>L = fst (buildFormulaParentList (And \<psi>\<^sub>1 \<psi>\<^sub>2))\<close> add_diff_cancel_left' foi_first_index_is_always_the_root_formula formula_and_parent_list_are_always_the_same_length hd_conv_nth less_numeral_extra(3) list.size(3) parent_list_is_never_empty plus_1_eq_Suc prod.collapse)
+  have "wfCPLFormula (And \<psi>\<^sub>1 \<psi>\<^sub>2) \<B>" by (metis FoI.simps IH1 IH2 cancel_comm_monoid_add_class.diff_cancel foi_first_index_is_always_the_root_formula formula_list_is_never_empty hd_Cons_tl hd_conv_nth in_set_member less_numeral_extra(3) list.size(3) member_rec(1) prod.collapse wfCPLFormula.elims(2) wfCPLFormula.elims(3) wfFormula.simps(2))
+  show ?case using IH1 IH2 \<open>\<phi>\<^sub>L = And \<psi>\<^sub>1 \<psi>\<^sub>2 # \<phi>\<^sub>L_\<phi>\<^sub>1 @ \<phi>\<^sub>L_\<phi>\<^sub>2\<close> \<open>\<phi>\<^sub>L = fst (buildFormulaParentList (And \<psi>\<^sub>1 \<psi>\<^sub>2))\<close> \<open>\<phi>\<^sub>L_\<phi>\<^sub>1 = fst (buildFormulaParentList \<psi>\<^sub>1)\<close> \<open>\<phi>\<^sub>L_\<phi>\<^sub>2 = fst (buildFormulaParentList \<psi>\<^sub>2)\<close> \<open>wfCPLFormula (And \<psi>\<^sub>1 \<psi>\<^sub>2) \<B>\<close> by auto
+qed
+
+lemma foi_index_is_well_formed_if_root_formula_is_well_formed [simp] : 
+  fixes \<phi> :: Formula
+  fixes \<phi>\<^sub>L :: "Formula list"
+  fixes P\<^sub>L :: "nat list"
+  fixes \<B> :: "'a Structure"
+  assumes "wfCPLFormula \<phi> \<B>"
+  assumes "(\<phi>\<^sub>L, P\<^sub>L) = (buildFormulaParentList \<phi>)"
+  assumes "(i \<in> (setOfIndex P\<^sub>L))"
+  shows "(wfCPLFormula (FoI i (fst (buildFormulaParentList \<phi>))) \<B>)"
+proof (cases \<phi>)
+  case (Atom r var_list)
+  thus ?thesis using Atom assms by auto
+next
+  case (And \<psi>\<^sub>1 \<psi>\<^sub>2)
+  thus ?thesis by (metis FoI.simps One_nat_def Suc_le_eq Suc_pred assms(1) assms(2) assms(3) every_index_is_in_inside_range formula_and_parent_list_are_always_the_same_length formula_list_maintains_well_formedness nth_mem snd_conv) 
+next
+  case (Forall x \<psi>)
+  thus ?thesis by (metis FoI.simps One_nat_def Suc_le_eq Suc_pred assms(1) assms(2) assms(3) every_index_is_in_inside_range formula_and_parent_list_are_always_the_same_length formula_list_maintains_well_formedness nth_mem snd_conv)  
+next
+  case (Exists x \<psi>)
+  thus ?thesis by (metis FoI.simps One_nat_def Suc_le_eq Suc_pred assms(1) assms(2) assms(3) every_index_is_in_inside_range formula_and_parent_list_are_always_the_same_length formula_list_maintains_well_formedness nth_mem snd_conv)
+qed
 
 (* ==================== Tests ==================== *)
 

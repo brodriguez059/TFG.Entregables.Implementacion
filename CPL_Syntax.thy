@@ -14,6 +14,8 @@ And (and_f1: "Formula") (and_f2: "Formula") |
 Forall (forall_x: "Variable") (forall_f: "Formula") |
 Exists (exists_x: "Variable") (exists_f: "Formula")
 
+value "(exists_f (Exists (CHR ''x'') (Atom (CHR ''E'') [CHR ''x''])))"
+
 (* ======================== Auxiliary Functions ======================== *)
 
 fun freeVar :: "Formula \<Rightarrow> Variable set" where
@@ -49,11 +51,28 @@ fun containsSubformula :: "Formula \<Rightarrow> Formula \<Rightarrow> bool" whe
 "containsSubformula (Exists x \<phi>) \<phi>\<^sub>2 = (\<phi> = \<phi>\<^sub>2)" |
 "containsSubformula (And \<phi>\<^sub>0 \<phi>\<^sub>1) \<phi>\<^sub>2 = ((\<phi>\<^sub>0 = \<phi>\<^sub>2) \<or> (\<phi>\<^sub>1 = \<phi>\<^sub>2))"
 
+fun containsSubformulaInTree :: "Formula \<Rightarrow> Formula \<Rightarrow> bool" where
+"containsSubformulaInTree (Atom r var_list) \<phi>\<^sub>2 = ((Atom r var_list) = \<phi>\<^sub>2)" |
+"containsSubformulaInTree (Forall x \<phi>) \<phi>\<^sub>2 = (
+  ((Forall x \<phi>) = \<phi>\<^sub>2) \<or>
+  (containsSubformulaInTree \<phi> \<phi>\<^sub>2)
+)" |
+"containsSubformulaInTree (Exists x \<phi>) \<phi>\<^sub>2 = (
+  ((Exists x \<phi>) = \<phi>\<^sub>2) \<or>
+  (containsSubformulaInTree \<phi> \<phi>\<^sub>2)
+)" |
+"containsSubformulaInTree (And \<phi>\<^sub>0 \<phi>\<^sub>1) \<phi>\<^sub>2 = (
+  ((And \<phi>\<^sub>0 \<phi>\<^sub>1) = \<phi>\<^sub>2) \<or>
+  ((containsSubformulaInTree \<phi>\<^sub>0 \<phi>\<^sub>2) \<or> (containsSubformulaInTree \<phi>\<^sub>1 \<phi>\<^sub>2))
+)"
+
 fun formulaDepth :: "Formula \<Rightarrow> nat" where
 "formulaDepth (Atom r var_list) = 0" |
 "formulaDepth (Forall x \<phi>) = 1 + (formulaDepth \<phi>)" |
 "formulaDepth (Exists x \<phi>) = 1 + (formulaDepth \<phi>)" |
 "formulaDepth (And \<phi>\<^sub>0 \<phi>\<^sub>1) = 1 + (max (formulaDepth \<phi>\<^sub>0) (formulaDepth \<phi>\<^sub>1))"
+
+(* ======================== Extra Lemmas ======================== *)
 
 lemma finite_definition_of_formulas [simp] :
   fixes \<phi>\<^sub>1 :: Formula
@@ -83,7 +102,22 @@ next
   show ?thesis using and_subformula_equality max_depth_is_lesser by auto
 qed
 
-(* ======================== Extra Lemmas ======================== *)
+lemma element_is_inside_its_own_tree [simp] :
+  fixes \<phi>:: Formula
+  shows "containsSubformulaInTree \<phi> \<phi>"
+proof (cases \<phi>)
+  case (Atom r var_list)
+  thus ?thesis by (simp add: Atom)
+next
+  case (Forall x \<psi>)
+  thus ?thesis by (simp add: Forall)
+next
+  case (Exists x \<psi>)
+  thus ?thesis by (simp add: Exists)
+next
+  case (And \<psi>\<^sub>1 \<psi>\<^sub>2)
+  thus ?thesis by (simp add: And)
+qed
 
 lemma non_empty_atom_cannot_be_sentence [simp] : "\<lbrakk>
   (isFormulaAtom \<phi>);
@@ -182,7 +216,7 @@ lemma "isFormulaAnd existsFormula = False"
 
 
 abbreviation "andFormula::Formula \<equiv> (And forAllFormula existsFormula)"
-
+                                                                
 lemma "freeVar andFormula = {CHR ''x'', CHR ''y''}"
   by auto
 
@@ -207,7 +241,7 @@ abbreviation "sentenceFormula::Formula \<equiv> (Forall (CHR ''x'') existsFormul
 
 lemma "freeVar sentenceFormula = {}"
   by auto
-
+            
 lemma "sentence sentenceFormula = True"
   by auto
 
