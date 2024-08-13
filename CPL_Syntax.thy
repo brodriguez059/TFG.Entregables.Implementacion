@@ -27,6 +27,11 @@ fun freeVar :: "Formula \<Rightarrow> Variable set" where
 fun sentence :: "Formula \<Rightarrow> bool" where
 "sentence \<phi> = ((freeVar \<phi>) = {})"
 
+(* ======================== Auxiliary Lemmas ======================== *)
+
+lemma atom_var_list_is_always_its_free_vars [simp] : "(freeVar (Atom r var_list)) = (set var_list)"
+  by (auto)
+
 (* ======================== Extra Functions ======================== *)
 
 fun isFormulaAtom :: "Formula \<Rightarrow> bool" where

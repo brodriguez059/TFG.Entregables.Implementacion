@@ -53,7 +53,7 @@ lemma build_judgement_atom_index_is_maintained [simp] : "\<lbrakk>
 \<rbrakk> \<Longrightarrow> (Index (buildJudgementAtom i var_list r \<B>)) = i"
   by (auto)
 
-lemma build_judgement_atom_index_is_defined [simp] : "\<lbrakk>
+lemma build_judgement_atom_var_set_is_defined [simp] : "\<lbrakk>
   (\<phi>\<^sub>L, P\<^sub>L) = (buildFormulaParentList \<phi>);
   (i \<in> (setOfIndex P\<^sub>L));
   (wfCPLFormula (Atom r var_list) \<B>);
@@ -61,10 +61,29 @@ lemma build_judgement_atom_index_is_defined [simp] : "\<lbrakk>
 \<rbrakk> \<Longrightarrow> (Vars (buildJudgementAtom i var_list r \<B>)) = (set var_list)"
   by (auto)
 
+lemma build_judgement_atom_var_set_is_its_free_vars [simp] : "\<lbrakk>
+  (\<phi>\<^sub>L, P\<^sub>L) = (buildFormulaParentList \<phi>);
+  (i \<in> (setOfIndex P\<^sub>L));
+  (wfCPLFormula (Atom r var_list) \<B>);
+  ((Interp \<B>) r) = (Some f)
+\<rbrakk> \<Longrightarrow> (Vars (buildJudgementAtom i var_list r \<B>)) = (freeVar (Atom r var_list))"
+  by (auto)
+
+lemma build_judgement_atom_funcs_is_defined [simp] : "\<lbrakk>
+  (\<phi>\<^sub>L, P\<^sub>L) = (buildFormulaParentList \<phi>);
+  (i \<in> (setOfIndex P\<^sub>L));
+  (wfCPLFormula (Atom r var_list) \<B>);
+  ((Interp \<B>) r) = (Some f)
+\<rbrakk> \<Longrightarrow> (Funcs (buildJudgementAtom i var_list r \<B>)) = (buildAtomValuations var_list f)"
+  by (auto)
+
 lemma join_index_is_maintained [simp] : "(Index (join \<J>\<^sub>0 \<J>\<^sub>1)) = (Index \<J>\<^sub>0)"
   by (auto)
 
 lemma join_var_set_is_increased [simp] : "(Vars (join \<J>\<^sub>0 \<J>\<^sub>1)) = ((Vars \<J>\<^sub>0) \<union> (Vars \<J>\<^sub>1))"
+  by (auto)
+
+lemma join_funcs_is_updated [simp] : "(Funcs (join \<J>\<^sub>0 \<J>\<^sub>1)) = (joinJudgementValuations \<J>\<^sub>0 \<J>\<^sub>1)"
   by (auto)
 
 lemma dual_project_index_is_maintained [simp] : "(Index (dualProject y \<J> \<B>)) = (Index \<J>)"
@@ -77,7 +96,16 @@ lemma dual_project_var_set_is_reduced [simp] : "(Vars (dualProject y \<J> \<B>))
   apply (metis DiffE Judgement.sel(2) insertCI)
   by (metis DiffI Judgement.sel(2) singletonD)
 
+lemma dual_project_funcs_is_updated [simp] : "\<lbrakk>
+  variables = ((Vars \<J>) - {y});
+  \<J>\<^sub>0 = (Judgement (Index \<J>) variables (projectJudgementValuations \<J> variables))
+\<rbrakk> \<Longrightarrow>(Funcs (dualProject y \<J> \<B>)) = (dualProjectJudgementValuations \<J>\<^sub>0 \<J> y \<B>)"
+  sorry
+
 lemma project_var_set_is_maintained [simp] : "(Vars (project \<J> V)) = V"
+  by (auto)
+
+lemma project_funcs_is_updated [simp] : "(Funcs (project \<J> V)) = (projectJudgementValuations \<J> V)"
   by (auto)
 
 (* ======================== Canonical Judgement Functions ======================== *)
@@ -139,11 +167,6 @@ fun canonicalJudgement :: "nat \<Rightarrow> Formula \<Rightarrow> 'a Structure 
   )
 )"
 
-(*
-fun setOfValModels :: "Formula \<Rightarrow> 'a Structure \<Rightarrow> 'a Valuation set" where
-"setOfValModels \<phi> \<B> = {}"
-*)
-
 (* ======================== Canonical Judgement Lemmas ======================== *)
 
 (*
@@ -157,6 +180,43 @@ lemma canonical_judgement_rec_cannot_be_null_judgement_if_valid [simp] : "\<lbra
 \<rbrakk> \<Longrightarrow> (canonicalJudgementRec \<psi> i \<phi>\<^sub>L P\<^sub>L \<B>) \<noteq> (Judgement 0 {} {})"
   apply (auto)
 *)
+
+(*
+lemma canonical_judgement_is_canonical_judgement_rec_if_valid [simp] : "\<lbrakk>
+  (wfCPLFormula \<phi> \<B>);
+  (\<phi>\<^sub>L, P\<^sub>L) = (buildFormulaParentList \<phi>);
+  (i \<in> (setOfIndex P\<^sub>L));
+  (i > 0);
+  (i \<le> (length P\<^sub>L))
+\<rbrakk> \<Longrightarrow> ((canonicalJudgement i \<phi> \<B>) = (canonicalJudgementRec (FoI i \<phi>\<^sub>L) i \<phi>\<^sub>L P\<^sub>L \<B>))"
+  apply (auto)
+  apply (rule canonicalJudgement.cases)
+*)
+
+
+lemma canonical_judgement_is_canonical_judgement_rec_if_valid [simp] :
+  fixes \<phi> :: Formula
+  fixes \<B> :: "'a Structure"
+  fixes i :: nat
+  fixes \<phi>\<^sub>L :: "Formula list"
+  fixes P\<^sub>L :: "nat list"
+  assumes "(wfCPLFormula \<phi> \<B>)"
+  assumes "(\<phi>\<^sub>L, P\<^sub>L) = (buildFormulaParentList \<phi>)"
+  assumes "(i \<in> (setOfIndex P\<^sub>L))"
+  shows "(canonicalJudgement i \<phi> \<B>) = (canonicalJudgementRec (FoI i \<phi>\<^sub>L) i \<phi>\<^sub>L P\<^sub>L \<B>)"
+proof -
+  obtain \<psi> where "\<psi> = (FoI i \<phi>\<^sub>L)" by auto
+  have "((length P\<^sub>L) > 0)" using assms(2) parent_list_is_never_empty by auto
+  have "(length \<phi>\<^sub>L) = (length P\<^sub>L)" by (metis assms(2) formula_and_parent_list_are_always_the_same_length fst_conv snd_conv)
+  have "(i > 0) \<and> (i \<le> (length P\<^sub>L))" using Suc_le_eq assms(3) by auto
+  have "(wfCPLFormula \<phi> \<B>)" using assms(1) by auto 
+  have "(wfCPLFormula \<psi> \<B>)" by (metis \<open>\<psi> = FoI i \<phi>\<^sub>L\<close> assms(1) assms(2) assms(3) foi_index_is_well_formed_if_root_formula_is_well_formed fst_conv)
+  obtain \<J>\<^sub>c where "\<J>\<^sub>c = (canonicalJudgement i \<phi> \<B>)" by auto
+  obtain \<J>\<^sub>r where "\<J>\<^sub>r = (canonicalJudgementRec \<psi> i \<phi>\<^sub>L P\<^sub>L \<B>)" by auto
+  have "\<J>\<^sub>c \<noteq> (Judgement 0 {} {})" sorry
+  have "\<J>\<^sub>r \<noteq> (Judgement 0 {} {})" sorry
+  thus ?thesis sorry
+qed
 
 lemma canonical_judgement_rec_index_is_maintained_for_atom [simp] :
   fixes \<phi> :: Formula
@@ -263,11 +323,14 @@ lemma canonical_judgement_lemma_var_set [simp] :
   assumes "(i \<in> (setOfIndex P\<^sub>L))"
   assumes "\<J>\<^sub>c = (canonicalJudgement i \<phi> \<B>)"
   shows "(Vars \<J>\<^sub>c) = (freeVar (FoI i \<phi>\<^sub>L))"
-proof -
+proof -  
   obtain \<psi> where "\<psi> = (FoI i \<phi>\<^sub>L)" by simp
-  thus ?thesis sorry
-  (*proof (cases \<psi>)
+  thus ?thesis
+  proof (cases \<psi>)
     case (Atom r var_list)
+    have "isFormulaAtom \<psi>" by (simp add: Atom)
+    have "(wfCPLFormula \<psi> \<B>)" by (metis \<open>\<psi> = FoI i \<phi>\<^sub>L\<close> assms(1) assms(2) assms(3) foi_index_is_well_formed_if_root_formula_is_well_formed fst_conv wfCPLInstance.elims(2))
+    obtain f where "(Some f) = ((Interp \<B>) r)" by (metis Atom \<open>wfCPLFormula \<psi> \<B>\<close> not_Some_eq wf_atom_in_wf_structure_always_has_an_interpretation_for_its_relation)
     thus ?thesis sorry
   next
     case (And \<psi>\<^sub>1 \<psi>\<^sub>2)
@@ -278,41 +341,8 @@ proof -
   next
     case (Exists x \<psi>\<^sub>1)
     then show ?thesis sorry
-  qed*)
+  qed
 qed
-
-(*
-lemma canonical_judgement_lemma_set_of_val_models [simp] :
-  fixes \<phi> :: Formula
-  fixes \<B> :: "'a Structure"
-  fixes i :: nat
-  fixes \<J>\<^sub>c :: "'a Judgement"
-  fixes \<phi>\<^sub>L :: "Formula list"
-  fixes P\<^sub>L :: "nat list"
-  assumes "(wfCPLInstance \<phi> \<B>)"
-  assumes "(\<phi>\<^sub>L, P\<^sub>L) = (buildFormulaParentList \<phi>)"
-  assumes "(i \<in> (setOfIndex P\<^sub>L))"
-  assumes "\<J>\<^sub>c = (canonicalJudgement i \<phi> \<B>)"
-  shows "(Funcs \<J>\<^sub>c) = (setOfValModels (FoI i (formulaToList \<phi>)) \<B>)"
-proof -
-  obtain \<J>\<^sub>c where canonical_judgement: "\<J>\<^sub>c = (canonicalJudgement i \<phi> \<B>)" by simp
-  obtain \<psi> where "\<psi> = (FoI i \<phi>\<^sub>L)" by simp
-  thus ?thesis sorry
-  (*proof (cases \<psi>)
-    case (Atom r var_list)
-    thus ?thesis sorry
-  next
-    case (And \<psi>\<^sub>1 \<psi>\<^sub>2)
-    thus ?thesis sorry
-  next
-    case (Forall x \<psi>\<^sub>1)
-    thus ?thesis sorry
-  next
-    case (Exists x \<psi>\<^sub>1)
-    thus ?thesis sorry
-  qed*)
-qed
-*)
 
 lemma canonical_judgement_lemma_is_derivable [simp] :
   fixes \<phi> :: Formula
@@ -328,8 +358,8 @@ lemma canonical_judgement_lemma_is_derivable [simp] :
   shows "isDerivable \<phi> \<B> \<J>\<^sub>c"
 proof -        
   obtain \<psi> where "\<psi> = (FoI i \<phi>\<^sub>L)" by simp
-  thus ?thesis sorry
-  (*proof (cases \<psi>)
+  thus ?thesis
+  proof (cases \<psi>)
     case (Atom r var_list)
     thus ?thesis sorry
   next
@@ -341,7 +371,7 @@ proof -
   next
     case (Exists x \<psi>\<^sub>1)
     thus ?thesis sorry
-  qed*)
+  qed
 qed
 
 (* ================= Completeness Proof ================= *)

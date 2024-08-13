@@ -270,10 +270,25 @@ proof (induct \<phi>) \<comment> \<open> TODO: Terminar y fixear, puede que HI n
   case (Atom r var_list)
   have "[(Atom r var_list)] = (fst (buildFormulaParentList (Atom r var_list)))" using Atom by auto
   have "(wfStructure \<B>)" using assms by auto
-  have "(wfFormula (Atom r var_list) (Sig \<B>))" sorry
-  have "wfCPLFormula (Atom r var_list) \<B>" using \<open>wfFormula (Atom r var_list) (Sig \<B>)\<close> \<open>wfStructure \<B>\<close> by force
-  have "?P (Atom r var_list)" using \<open>wfCPLFormula (Atom r var_list) \<B>\<close> by auto
-  thus ?case by blast
+  obtain \<S> where "\<S> = (Sig \<B>)" by auto
+  thus ?case
+  proof (cases "(\<S> r)")
+    case None
+    thus ?thesis sorry
+  next
+    case (Some n)
+    thus ?thesis
+    proof (cases "(length var_list) = n")
+      case True
+      have "(wfFormula (Atom r var_list) \<S>)" by (simp add: Some \<open>length var_list = n\<close>)
+      have "wfCPLFormula (Atom r var_list) \<B>" using \<open>\<S> = Sig \<B>\<close> \<open>wfFormula (Atom r var_list) \<S>\<close> \<open>wfStructure \<B>\<close> by auto
+      have "?P (Atom r var_list)" using \<open>wfCPLFormula (Atom r var_list) \<B>\<close> by auto
+      thus ?thesis by blast
+    next
+      case False
+      thus ?thesis sorry
+    qed
+  qed
 next
   case (Forall x \<psi>)
   assume IH: "?P \<psi>"
