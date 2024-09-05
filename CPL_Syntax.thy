@@ -14,8 +14,6 @@ And (and_f1: "Formula") (and_f2: "Formula") |
 Forall (forall_x: "Variable") (forall_f: "Formula") |
 Exists (exists_x: "Variable") (exists_f: "Formula")
 
-value "(exists_f (Exists (CHR ''x'') (Atom (CHR ''E'') [CHR ''x''])))"
-
 (* ======================== Auxiliary Functions ======================== *)
 
 fun freeVar :: "Formula \<Rightarrow> Variable set" where

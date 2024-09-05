@@ -1,5 +1,5 @@
 theory "CPL_Completeness"
-  imports Main "CPL_Syntax" "CPL_Semantic" "CPL_Proof_Base" "CPL_Proof_System"
+  imports Main "CPL_Syntax" "CPL_Semantic" "CPL_Proof_System"
 begin
 
 (* ==================== Completeness ==================== *)
@@ -374,6 +374,16 @@ proof -
   qed
 qed
 
+lemma completeness_canonical_judgement_funcs_set_is_empty [simp] :
+  fixes \<phi> :: Formula
+  fixes \<B> :: "'a Structure"
+  assumes "(wfCPLInstance \<phi> \<B>)"
+  assumes "\<not>(isModel \<B> e \<phi>)"
+  shows "(Funcs (canonicalJudgement 1 \<phi> \<B>)) = {}"
+proof -
+  show ?thesis sorry
+qed
+
 (* ================= Completeness Proof ================= *)
 
 theorem CPL_Completeness_Theorem [simp] :
@@ -420,9 +430,9 @@ proof -
         have "(length var_list) = 0" using \<open>sentence \<phi>\<close> \<open>set var_list = freeVar \<phi>\<close> by auto
         obtain \<J>\<^sub>c where "\<J>\<^sub>c = canonicalJudgement 1 \<phi> \<B>" by auto
         then have "isDerivable \<phi> \<B> \<J>\<^sub>c" using \<open>(\<phi>\<^sub>L, P\<^sub>L) = buildFormulaParentList \<phi>\<close> \<open>1 \<in> setOfIndex P\<^sub>L\<close> assms(1) canonical_judgement_lemma_is_derivable by blast
-        have "(Index \<J>\<^sub>c) = 1" using \<open>(\<phi>\<^sub>L, P\<^sub>L) = buildFormulaParentList \<phi>\<close> \<open>1 \<in> setOfIndex P\<^sub>L\<close> \<open>\<J>\<^sub>c = canonicalJudgement 1 \<phi> \<B>\<close> assms(1) canonical_judgement_lemma_index by blast 
-        have "(Vars \<J>\<^sub>c) = {}" by (metis \<open>(\<phi>\<^sub>L, P\<^sub>L) = buildFormulaParentList \<phi>\<close> \<open>1 \<in> setOfIndex P\<^sub>L\<close> \<open>\<J>\<^sub>c = canonicalJudgement 1 \<phi> \<B>\<close> \<open>\<phi> = FoI 1 \<phi>\<^sub>L\<close> \<open>sentence \<phi>\<close> assms(1) canonical_judgement_lemma_var_set sentence.elims(2)) 
-        have "(Funcs \<J>\<^sub>c) = {}" sorry
+        have "(Index \<J>\<^sub>c) = 1" using \<open>(\<phi>\<^sub>L, P\<^sub>L) = buildFormulaParentList \<phi>\<close> \<open>1 \<in> setOfIndex P\<^sub>L\<close> \<open>\<J>\<^sub>c = canonicalJudgement 1 \<phi> \<B>\<close> assms(1) canonical_judgement_lemma_index by blast
+        have "(Vars \<J>\<^sub>c) = {}" by (metis \<open>(\<phi>\<^sub>L, P\<^sub>L) = buildFormulaParentList \<phi>\<close> \<open>1 \<in> setOfIndex P\<^sub>L\<close> \<open>\<J>\<^sub>c = canonicalJudgement 1 \<phi> \<B>\<close> \<open>\<phi> = FoI 1 \<phi>\<^sub>L\<close> \<open>sentence \<phi>\<close> assms(1) canonical_judgement_lemma_var_set sentence.elims(2))
+        have "(Funcs \<J>\<^sub>c) = {}" using \<open>\<J>\<^sub>c = canonicalJudgement 1 \<phi> \<B>\<close> assms(1) assms(2) completeness_canonical_judgement_funcs_set_is_empty by blast
         have "\<J>\<^sub>c = (Judgement 1 {} {})" by (metis Judgement.collapse \<open>Funcs \<J>\<^sub>c = {}\<close> \<open>Index \<J>\<^sub>c = 1\<close> \<open>Vars \<J>\<^sub>c = {}\<close>) 
         thus ?thesis using \<open>isDerivable \<phi> \<B> \<J>\<^sub>c\<close> by blast
       qed
@@ -433,7 +443,7 @@ proof -
     then have "isDerivable \<phi> \<B> \<J>\<^sub>c" using \<open>(\<phi>\<^sub>L, P\<^sub>L) = buildFormulaParentList \<phi>\<close> \<open>1 \<in> setOfIndex P\<^sub>L\<close> assms(1) canonical_judgement_lemma_is_derivable by blast
     have "(Index \<J>\<^sub>c) = 1" using \<open>(\<phi>\<^sub>L, P\<^sub>L) = buildFormulaParentList \<phi>\<close> \<open>1 \<in> setOfIndex P\<^sub>L\<close> \<open>\<J>\<^sub>c = canonicalJudgement 1 \<phi> \<B>\<close> assms(1) canonical_judgement_lemma_index by blast
     have "(Vars \<J>\<^sub>c) = {}" by (metis \<open>(\<phi>\<^sub>L, P\<^sub>L) = buildFormulaParentList \<phi>\<close> \<open>1 \<in> setOfIndex P\<^sub>L\<close> \<open>\<J>\<^sub>c = canonicalJudgement 1 \<phi> \<B>\<close> \<open>\<phi> = FoI 1 \<phi>\<^sub>L\<close> \<open>sentence \<phi>\<close> assms(1) canonical_judgement_lemma_var_set sentence.elims(2)) 
-    have "(Funcs \<J>\<^sub>c) = {}" sorry
+    have "(Funcs \<J>\<^sub>c) = {}" using \<open>\<J>\<^sub>c = canonicalJudgement 1 \<phi> \<B>\<close> assms(1) assms(2) completeness_canonical_judgement_funcs_set_is_empty by blast 
     have "\<J>\<^sub>c = (Judgement 1 {} {})" by (metis Judgement.collapse \<open>Funcs \<J>\<^sub>c = {}\<close> \<open>Index \<J>\<^sub>c = 1\<close> \<open>Vars \<J>\<^sub>c = {}\<close>) 
     thus ?thesis using \<open>isDerivable \<phi> \<B> \<J>\<^sub>c\<close> by auto
   next
@@ -442,7 +452,7 @@ proof -
     then have "isDerivable \<phi> \<B> \<J>\<^sub>c" using \<open>(\<phi>\<^sub>L, P\<^sub>L) = buildFormulaParentList \<phi>\<close> \<open>1 \<in> setOfIndex P\<^sub>L\<close> assms(1) canonical_judgement_lemma_is_derivable by blast 
     have "(Index \<J>\<^sub>c) = 1" using \<open>(\<phi>\<^sub>L, P\<^sub>L) = buildFormulaParentList \<phi>\<close> \<open>1 \<in> setOfIndex P\<^sub>L\<close> \<open>\<J>\<^sub>c = canonicalJudgement 1 \<phi> \<B>\<close> assms(1) canonical_judgement_lemma_index by blast 
     have "(Vars \<J>\<^sub>c) = {}" by (metis \<open>(\<phi>\<^sub>L, P\<^sub>L) = buildFormulaParentList \<phi>\<close> \<open>1 \<in> setOfIndex P\<^sub>L\<close> \<open>\<J>\<^sub>c = canonicalJudgement 1 \<phi> \<B>\<close> \<open>\<phi> = FoI 1 \<phi>\<^sub>L\<close> \<open>sentence \<phi>\<close> assms(1) canonical_judgement_lemma_var_set sentence.elims(2))
-    have "(Funcs \<J>\<^sub>c) = {}" sorry
+    have "(Funcs \<J>\<^sub>c) = {}" using \<open>\<J>\<^sub>c = canonicalJudgement 1 \<phi> \<B>\<close> assms(1) assms(2) completeness_canonical_judgement_funcs_set_is_empty by blast 
     have "\<J>\<^sub>c = (Judgement 1 {} {})" by (metis Judgement.collapse \<open>Funcs \<J>\<^sub>c = {}\<close> \<open>Index \<J>\<^sub>c = 1\<close> \<open>Vars \<J>\<^sub>c = {}\<close>) 
     thus ?thesis using \<open>isDerivable \<phi> \<B> \<J>\<^sub>c\<close> by auto  
   next
@@ -451,7 +461,7 @@ proof -
     then have "isDerivable \<phi> \<B> \<J>\<^sub>c" using \<open>(\<phi>\<^sub>L, P\<^sub>L) = buildFormulaParentList \<phi>\<close> \<open>1 \<in> setOfIndex P\<^sub>L\<close> assms(1) canonical_judgement_lemma_is_derivable by blast 
     have "(Index \<J>\<^sub>c) = 1" using \<open>(\<phi>\<^sub>L, P\<^sub>L) = buildFormulaParentList \<phi>\<close> \<open>1 \<in> setOfIndex P\<^sub>L\<close> \<open>\<J>\<^sub>c = canonicalJudgement 1 \<phi> \<B>\<close> assms(1) canonical_judgement_lemma_index by blast 
     have "(Vars \<J>\<^sub>c) = {}" using \<open>(\<phi>\<^sub>L, P\<^sub>L) = buildFormulaParentList \<phi>\<close> \<open>1 \<in> setOfIndex P\<^sub>L\<close> \<open>\<J>\<^sub>c = canonicalJudgement 1 \<phi> \<B>\<close> \<open>\<phi> = FoI 1 \<phi>\<^sub>L\<close> \<open>sentence \<phi>\<close> assms(1) canonical_judgement_lemma_var_set sentence.simps by blast 
-    have "(Funcs \<J>\<^sub>c) = {}" sorry
+    have "(Funcs \<J>\<^sub>c) = {}" using \<open>\<J>\<^sub>c = canonicalJudgement 1 \<phi> \<B>\<close> assms(1) assms(2) completeness_canonical_judgement_funcs_set_is_empty by blast 
     have "\<J>\<^sub>c = (Judgement 1 {} {})" by (metis Judgement.collapse \<open>Funcs \<J>\<^sub>c = {}\<close> \<open>Index \<J>\<^sub>c = 1\<close> \<open>Vars \<J>\<^sub>c = {}\<close>) 
     thus ?thesis using \<open>isDerivable \<phi> \<B> \<J>\<^sub>c\<close> by auto
   qed
