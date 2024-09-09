@@ -60,9 +60,6 @@ fun CoI :: "nat \<Rightarrow> ParentIndex list \<Rightarrow> ChildIndexes" where
 
 (* ======================== Auxiliary Lemmas ======================== *)
 
-lemma [simp] : "\<lbrakk>(length xs) > 0\<rbrakk> \<Longrightarrow> (length (x # (tl xs))) = (length xs)"
-  by (auto)
-
 lemma formula_list_is_never_empty [simp] :
   fixes \<phi> :: Formula
   fixes \<phi>\<^sub>L :: "Formula list"
@@ -342,8 +339,26 @@ qed
 
 (* ==================== Tests ==================== *)
 
-abbreviation "myUniverse::(BEnum set) \<equiv> {A,B,C}"
-abbreviation "mySignature::(Signature) \<equiv> [CHR ''E'' \<mapsto> 2]"
+datatype BEnum = A | B | C (* Finite datatype *)
+
+lemma BEnum_induct: "\<lbrakk>x \<noteq> A; x \<noteq> B\<rbrakk> \<Longrightarrow> x = C"
+  apply(cases x)
+  by auto
+
+lemma UNIV_BEnum: "UNIV = {A, B, C}"
+  by (auto simp add: BEnum_induct)
+
+instantiation BEnum :: enum \<comment> \<open> Note: We must indicate that this type is an enum to use ran and dom \<close>
+begin
+  definition "Enum.enum = [A,B,C]"
+  definition "Enum.enum_all P \<longleftrightarrow> (Ball {A,B,C} P)"
+  definition "Enum.enum_ex P \<longleftrightarrow> (Bex {A,B,C} P)"
+  
+  instance proof
+  qed (auto simp add: enum_BEnum_def enum_all_BEnum_def enum_ex_BEnum_def UNIV_BEnum)
+end
+
+
 
 abbreviation "myExtendedFormula \<equiv> (
   Exists (CHR ''x'') (
@@ -384,6 +399,8 @@ abbreviation "myParentList \<equiv> [0,1,2,3,4,5,5,3,8,9,10,10,9,13,14,13]"
 lemma "(snd (buildFormulaParentList myExtendedFormula)) = myParentList"
   by auto
 
+
+
 abbreviation "myFormula \<equiv> (
   Exists (CHR ''x'') (
     Forall (CHR ''y'') (
@@ -397,8 +414,13 @@ abbreviation "myFormula \<equiv> (
   )
 )"
 
+abbreviation "myUniverse::(BEnum set) \<equiv> {A,B,C}"
+abbreviation "mySignature::(Signature) \<equiv> [CHR ''E'' \<mapsto> 2]"
+
 lemma "wfFormula myFormula mySignature = True"
   by auto
+
+
 
 abbreviation "myInterpretation::(BEnum Interpretation) \<equiv> [CHR ''E'' \<mapsto> {[A,A],[A,C],[B,A]}]"
 abbreviation "myStructure::(BEnum Structure) \<equiv> (Structure mySignature myUniverse myInterpretation)"

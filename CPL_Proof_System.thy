@@ -15,7 +15,7 @@ abbreviation "EmptyJudgement \<equiv> (Judgement 1 {} {e})"
 
 (* ================= Auxiliary Functions ================= *)
 
-fun isParent :: "'a Judgement \<Rightarrow> 'a Judgement \<Rightarrow> Formula list \<Rightarrow> nat list \<Rightarrow> bool" where
+fun isParent :: "'a Judgement \<Rightarrow> 'a Judgement \<Rightarrow> Formula list \<Rightarrow> ParentIndex list \<Rightarrow> bool" where
 "isParent \<J>\<^sub>1 \<J>\<^sub>2 \<phi>\<^sub>L P\<^sub>L = (
   let
     \<psi>\<^sub>1 = (FoI (Index \<J>\<^sub>1) \<phi>\<^sub>L);
@@ -163,14 +163,35 @@ fun isUpwardFlow :: "'a Judgement \<Rightarrow> 'a Judgement \<Rightarrow> Formu
     (
     let
       (\<phi>\<^sub>L, P\<^sub>L) = (buildFormulaParentList \<phi>)
-    in (
+    in (   
         isParent \<J>\<^sub>1 \<J>\<^sub>2 \<phi>\<^sub>L P\<^sub>L
       )
     )
 )"
 
 (* ================= Proof System ================= *)
+\<comment> \<open>The predicate isModel decides if the (\<B>,f) is a model of \<phi> ( (\<B>,f) \<Turnstile> \<phi> )\<close>
+fun isModel :: "'a Structure \<Rightarrow> 'a Valuation \<Rightarrow> Formula \<Rightarrow> bool" where
+"isModel \<B> f \<phi> = (
+  (wfStructure \<B>) \<and>
+  (wfFormula \<phi> (Sig \<B>)) \<and>
+  ((ran f) \<subseteq> (Univ \<B>)) \<and>
+  ((freeVar \<phi>) \<subseteq> (dom f)) \<and>
+  (case \<phi> of
+    (Atom r var_list) \<Rightarrow> (case (((Interp \<B>) r)) of 
+      None \<Rightarrow> False |
+      (Some set_of_list) \<Rightarrow> (
+        ((set var_list) \<subseteq> (dom f)) \<and>
+        ((mapValuation f var_list) \<in> set_of_list)
+      )
+    ) |
+    (And \<psi>\<^sub>1 \<psi>\<^sub>2) \<Rightarrow> ((isModel \<B> f \<psi>\<^sub>1) \<and> (isModel \<B> f \<psi>\<^sub>2)) |
+    (Forall x \<psi>) \<Rightarrow> (\<forall>v\<in>(Univ \<B>). (isModel \<B> (f(x \<mapsto> v)) \<psi>))|
+    (Exists x \<psi>) \<Rightarrow> (\<exists>v\<in>(Univ \<B>). (isModel \<B> (f(x \<mapsto> v)) \<psi>))
+  )
+)"
 
+\<comment> \<open>The inductive predicate isDerivable decides if a Judgement \<J> is derivable using the proof system rules \<close>
 inductive isDerivable :: "Formula \<Rightarrow> 'a Structure \<Rightarrow> 'a Judgement \<Rightarrow> bool" for \<phi> and \<B> where
 ATR: "\<lbrakk> \<comment> \<open>  Atom rule  \<close>
   wfCPLInstance \<phi> \<B>;
@@ -215,27 +236,7 @@ UFR: "\<lbrakk>
   ))
   \<rbrakk> \<Longrightarrow> isDerivable \<phi> \<B> \<J>"
 
-\<comment> \<open>The predicate isModel decides if the (\<B>,f) is a model of \<phi> ( (\<B>,f) \<Turnstile> \<phi> )\<close>
-fun isModel :: "'a Structure \<Rightarrow> 'a Valuation \<Rightarrow> Formula \<Rightarrow> bool" where
-"isModel \<B> f \<phi> = (
-  (wfStructure \<B>) \<and>
-  (wfFormula \<phi> (Sig \<B>)) \<and>
-  ((ran f) \<subseteq> (Univ \<B>)) \<and>
-  ((freeVar \<phi>) \<subseteq> (dom f)) \<and>
-  (case \<phi> of
-    (Atom r var_list) \<Rightarrow> (case (((Interp \<B>) r)) of 
-      None \<Rightarrow> False |
-      (Some set_of_list) \<Rightarrow> (
-        ((set var_list) \<subseteq> (dom f)) \<and>
-        ((mapValuation f var_list) \<in> set_of_list)
-      )
-    ) |
-    (And \<psi>\<^sub>1 \<psi>\<^sub>2) \<Rightarrow> ((isModel \<B> f \<psi>\<^sub>1) \<and> (isModel \<B> f \<psi>\<^sub>2)) |
-    (Forall x \<psi>) \<Rightarrow> (\<forall>v\<in>(Univ \<B>). (isModel \<B> (f(x \<mapsto> v)) \<psi>))|
-    (Exists x \<psi>) \<Rightarrow> (\<exists>v\<in>(Univ \<B>). (isModel \<B> (f(x \<mapsto> v)) \<psi>))
-  )
-)"
-
+print_theorems
 
 (* ======================== Tests ======================== *)
 
@@ -366,5 +367,133 @@ lemma "wfJudgement upwardFlowedJudgement myFormula myStructure = True"
 
 lemma "isUpwardFlow upwardFlowedJudgement upwardBaseJudgement myFormula myStructure = True"
   by (simp add: Let_def)
+
+
+
+abbreviation "exampleFormula::Formula \<equiv> (Forall (CHR ''x'') (Exists (CHR ''y'') (And (Exists (CHR ''z'') (Atom (CHR ''E'') [CHR ''z'', CHR ''y''])) (Atom (CHR ''R'') [CHR ''y'', CHR ''x'']))))"
+abbreviation "exampleUniverse::(BEnum set) \<equiv> {A,B,C}"
+abbreviation "exampleSignature::(Signature) \<equiv> [CHR ''E'' \<mapsto> 2, CHR ''R'' \<mapsto> 2]"
+abbreviation "exampleInterpretation::(BEnum Interpretation) \<equiv> [CHR ''E'' \<mapsto> {[A,B],[C,A]}, CHR ''R'' \<mapsto> {[A,A],[A,B],[B,C]}]"
+abbreviation "exampleStructure::(BEnum Structure) \<equiv> (Structure exampleSignature exampleUniverse exampleInterpretation)"
+
+lemma [simp] : "(wfStructure exampleStructure) = True"
+  by (auto)
+
+lemma [simp] : "((ran e) \<subseteq> (Univ exampleStructure)) = True"
+  by (auto)
+
+lemma [simp] : "(wfFormula exampleFormula (Sig exampleStructure)) = True"
+  by (auto)
+
+lemma [simp] : "((freeVar exampleFormula) \<subseteq> (dom e)) = True"
+  by (auto)
+
+lemma "(isModel exampleStructure e exampleFormula) = True"
+  by (auto)
+
+
+
+abbreviation "exampleFormulaIncomplete::Formula \<equiv> (And (Forall (CHR ''x'') (Atom (CHR ''Q'') [CHR ''x''])) (Exists (CHR ''y'') (Atom (CHR ''R'') [CHR ''y''])))"
+abbreviation "exampleUniverseIncomplete::(BEnum set) \<equiv> {A,B}"
+abbreviation "exampleSignatureIncomplete::(Signature) \<equiv> [CHR ''R'' \<mapsto> 1, CHR ''Q'' \<mapsto> 1]"
+abbreviation "exampleInterpretationIncomplete::(BEnum Interpretation) \<equiv> [CHR ''R'' \<mapsto> {[A]}, CHR ''Q'' \<mapsto> {[B]}]"
+abbreviation "exampleStructureIncomplete::(BEnum Structure) \<equiv> (Structure exampleSignatureIncomplete exampleUniverseIncomplete exampleInterpretationIncomplete)"
+
+lemma [simp] : "(wfStructure exampleStructureIncomplete) = True"
+  by (auto)
+
+lemma [simp] : "((ran e) \<subseteq> (Univ exampleStructureIncomplete)) = True"
+  by (auto)
+
+lemma [simp] : "(wfFormula exampleFormulaIncomplete (Sig exampleStructureIncomplete)) = True"
+  by (auto)
+
+lemma [simp] : "((freeVar exampleFormulaIncomplete) \<subseteq> (dom e)) = True"
+  by (auto)
+
+lemma "(isModel exampleStructureIncomplete e exampleFormulaIncomplete) = False"
+  by (auto)
+
+
+
+abbreviation "exampleAtomJudgementIncomplete::(BEnum Judgement) \<equiv> (Judgement 3 {CHR ''x''} {[CHR ''x'' \<mapsto> B]})"
+abbreviation "exampleAtomJudgementIncomplete2::(BEnum Judgement) \<equiv> (Judgement 5 {CHR ''y''} {[CHR ''y'' \<mapsto> A]})"
+abbreviation "exampleProjectionJudgementIncomplete::(BEnum Judgement) \<equiv> (Judgement 5 {} {e})"
+abbreviation "exampleUpwardJudgementIncomplete::(BEnum Judgement) \<equiv> (Judgement 4 {} {e})"
+abbreviation "exampleForallElimJudgementIncomplete::(BEnum Judgement) \<equiv> (Judgement 2 {} {})"
+abbreviation "exampleUpwardJudgementIncomplete2::(BEnum Judgement) \<equiv> (Judgement 1 {} {})"
+
+lemma [simp] : "(wfCPLInstance exampleFormulaIncomplete exampleStructureIncomplete) = True"
+  by auto
+
+lemma example_atom_judgement_incomplete_is_derivable [simp] : "(isDerivable exampleFormulaIncomplete exampleStructureIncomplete exampleAtomJudgementIncomplete) = True"
+  by (simp_all add: isDerivable.ATR)
+
+lemma example_atom_judgement_incomplete_2_is_derivable [simp] : "(isDerivable exampleFormulaIncomplete exampleStructureIncomplete exampleAtomJudgementIncomplete2) = True"
+  by (simp_all add: isDerivable.ATR)
+
+lemma example_atom_judgement_incomplete_2_is_projection [simp] : "(isProjection exampleProjectionJudgementIncomplete exampleAtomJudgementIncomplete2 exampleFormulaIncomplete exampleStructureIncomplete) = True"
+  by auto
+lemma example_projection_judgement_incomplete_is_derivable [simp] : shows "(isDerivable exampleFormulaIncomplete exampleStructureIncomplete exampleProjectionJudgementIncomplete) = True"
+proof -
+  have "(wfCPLInstance exampleFormulaIncomplete exampleStructureIncomplete)" by auto
+  have "(wfJudgement exampleProjectionJudgementIncomplete exampleFormulaIncomplete exampleStructureIncomplete)" by auto
+  obtain \<J> where "\<J> = exampleAtomJudgementIncomplete2" by auto
+  have "(isDerivable exampleFormulaIncomplete exampleStructureIncomplete \<J>)" using \<open>\<J> = Judgement 5 {CHR ''y''} {[CHR ''y'' \<mapsto> A]}\<close> example_atom_judgement_incomplete_2_is_derivable by blast
+  have "(isProjection exampleProjectionJudgementIncomplete \<J> exampleFormulaIncomplete exampleStructureIncomplete)" using \<open>\<J> = Judgement 5 {CHR ''y''} {[CHR ''y'' \<mapsto> A]}\<close> example_atom_judgement_incomplete_2_is_projection by blast
+  have "(\<exists>\<J>'. (
+    (isDerivable exampleFormulaIncomplete exampleStructureIncomplete \<J>') \<and>
+    (isProjection exampleProjectionJudgementIncomplete \<J>' exampleFormulaIncomplete exampleStructureIncomplete) 
+  ))" using example_atom_judgement_incomplete_2_is_derivable example_atom_judgement_incomplete_2_is_projection by blast
+  thus ?thesis using PJR \<open>wfCPLInstance exampleFormulaIncomplete (Structure [CHR ''R'' \<mapsto> 1, CHR ''Q'' \<mapsto> 1] exampleUniverseIncomplete [CHR ''R'' \<mapsto> {[A]}, CHR ''Q'' \<mapsto> {[B]}])\<close> example_atom_judgement_incomplete_2_is_derivable example_atom_judgement_incomplete_2_is_projection by blast
+qed
+
+lemma example_projection_judgement_incomplete_is_upward_flow [simp] : "(isUpwardFlow exampleUpwardJudgementIncomplete exampleProjectionJudgementIncomplete exampleFormulaIncomplete exampleStructureIncomplete) = True"
+  by (auto)
+lemma [simp] : shows "(isDerivable exampleFormulaIncomplete exampleStructureIncomplete exampleUpwardJudgementIncomplete) = True"
+proof -
+  have "(wfCPLInstance exampleFormulaIncomplete exampleStructureIncomplete)" by auto
+  have "(wfJudgement exampleUpwardJudgementIncomplete exampleFormulaIncomplete exampleStructureIncomplete)" by auto
+  obtain \<J> where "\<J> = exampleProjectionJudgementIncomplete" by auto
+  have "(isDerivable exampleFormulaIncomplete exampleStructureIncomplete \<J>)" using \<open>\<J> = Judgement 5 {} {\<lambda>x. None}\<close> example_projection_judgement_incomplete_is_derivable by fastforce
+  have "(isUpwardFlow exampleUpwardJudgementIncomplete \<J> exampleFormulaIncomplete exampleStructureIncomplete)" using \<open>\<J> = Judgement 5 {} {\<lambda>x. None}\<close> example_projection_judgement_incomplete_is_upward_flow by blast
+  have "(\<exists>\<J>'. (
+    (isDerivable exampleFormulaIncomplete exampleStructureIncomplete \<J>') \<and>
+    (isUpwardFlow exampleUpwardJudgementIncomplete \<J>' exampleFormulaIncomplete exampleStructureIncomplete) 
+  ))" using example_projection_judgement_incomplete_is_derivable example_projection_judgement_incomplete_is_upward_flow by blast
+  thus ?thesis using UFR \<open>wfCPLInstance exampleFormulaIncomplete (Structure [CHR ''R'' \<mapsto> 1, CHR ''Q'' \<mapsto> 1] exampleUniverseIncomplete [CHR ''R'' \<mapsto> {[A]}, CHR ''Q'' \<mapsto> {[B]}])\<close> \<open>wfJudgement (Judgement 4 {} {\<lambda>x. None}) exampleFormulaIncomplete (Structure [CHR ''R'' \<mapsto> 1, CHR ''Q'' \<mapsto> 1] exampleUniverseIncomplete [CHR ''R'' \<mapsto> {[A]}, CHR ''Q'' \<mapsto> {[B]}])\<close> by blast
+qed
+
+lemma example_atom_judgement_incomplete_is_dual_projection [simp] : "(isDualProjection exampleForallElimJudgementIncomplete exampleAtomJudgementIncomplete exampleFormulaIncomplete exampleStructureIncomplete) = True"
+  by (auto)
+lemma example_for_all_elim_judgemente_incomplete_is_derivable [simp] : shows "(isDerivable exampleFormulaIncomplete exampleStructureIncomplete exampleForallElimJudgementIncomplete) = True"
+proof -
+  have "(wfCPLInstance exampleFormulaIncomplete exampleStructureIncomplete)" by auto
+  have "(wfJudgement exampleForallElimJudgementIncomplete exampleFormulaIncomplete exampleStructureIncomplete)" by auto
+  obtain \<J> where "\<J> = exampleAtomJudgementIncomplete" by auto
+  have "(isDerivable exampleFormulaIncomplete exampleStructureIncomplete \<J>)" using \<open>\<J> = Judgement 3 {CHR ''x''} {[CHR ''x'' \<mapsto> B]}\<close> example_atom_judgement_incomplete_is_derivable by blast
+  have "(isDualProjection exampleForallElimJudgementIncomplete \<J> exampleFormulaIncomplete exampleStructureIncomplete)" using \<open>\<J> = Judgement 3 {CHR ''x''} {[CHR ''x'' \<mapsto> B]}\<close> example_atom_judgement_incomplete_is_dual_projection by blast
+  have "(\<exists>\<J>'. (
+    (isDerivable exampleFormulaIncomplete exampleStructureIncomplete \<J>') \<and>
+    (isDualProjection exampleForallElimJudgementIncomplete \<J>' exampleFormulaIncomplete exampleStructureIncomplete) 
+  ))" using example_atom_judgement_incomplete_is_derivable example_atom_judgement_incomplete_is_dual_projection by blast
+  thus ?thesis using FER \<open>wfCPLInstance exampleFormulaIncomplete (Structure [CHR ''R'' \<mapsto> 1, CHR ''Q'' \<mapsto> 1] exampleUniverseIncomplete [CHR ''R'' \<mapsto> {[A]}, CHR ''Q'' \<mapsto> {[B]}])\<close> \<open>wfJudgement exampleForallElimJudgementIncomplete exampleFormulaIncomplete (Structure [CHR ''R'' \<mapsto> 1, CHR ''Q'' \<mapsto> 1] exampleUniverseIncomplete [CHR ''R'' \<mapsto> {[A]}, CHR ''Q'' \<mapsto> {[B]}])\<close> by blast
+qed
+
+lemma example_for_all_elim_judgemente_incomplete_is_upward_flow [simp] : "(isUpwardFlow exampleUpwardJudgementIncomplete2 exampleForallElimJudgementIncomplete exampleFormulaIncomplete exampleStructureIncomplete) = True"
+  by (auto)
+lemma [simp] : shows "(isDerivable exampleFormulaIncomplete exampleStructureIncomplete exampleUpwardJudgementIncomplete2) = True"
+proof -
+  have "(wfCPLInstance exampleFormulaIncomplete exampleStructureIncomplete)" by auto
+  have "(wfJudgement exampleUpwardJudgementIncomplete2 exampleFormulaIncomplete exampleStructureIncomplete)" by auto
+  obtain \<J> where "\<J> = exampleForallElimJudgementIncomplete" by auto
+  have "(isDerivable exampleFormulaIncomplete exampleStructureIncomplete \<J>)" using \<open>\<J> = exampleForallElimJudgementIncomplete\<close> example_for_all_elim_judgemente_incomplete_is_derivable by blast
+  have "(isUpwardFlow exampleUpwardJudgementIncomplete2 \<J> exampleFormulaIncomplete exampleStructureIncomplete)" using \<open>\<J> = exampleForallElimJudgementIncomplete\<close> example_for_all_elim_judgemente_incomplete_is_upward_flow by blast
+  have "(\<exists>\<J>'. (
+    (isDerivable exampleFormulaIncomplete exampleStructureIncomplete \<J>') \<and>
+    (isUpwardFlow exampleUpwardJudgementIncomplete2 \<J>' exampleFormulaIncomplete exampleStructureIncomplete) 
+  ))" using \<open>isDerivable exampleFormulaIncomplete (Structure [CHR ''R'' \<mapsto> 1, CHR ''Q'' \<mapsto> 1] exampleUniverseIncomplete [CHR ''R'' \<mapsto> {[A]}, CHR ''Q'' \<mapsto> {[B]}]) \<J>\<close> \<open>isUpwardFlow exampleUpwardJudgementIncomplete2 \<J> exampleFormulaIncomplete (Structure [CHR ''R'' \<mapsto> 1, CHR ''Q'' \<mapsto> 1] exampleUniverseIncomplete [CHR ''R'' \<mapsto> {[A]}, CHR ''Q'' \<mapsto> {[B]}])\<close> by blast
+  thus ?thesis using UFR \<open>wfCPLInstance exampleFormulaIncomplete (Structure [CHR ''R'' \<mapsto> 1, CHR ''Q'' \<mapsto> 1] exampleUniverseIncomplete [CHR ''R'' \<mapsto> {[A]}, CHR ''Q'' \<mapsto> {[B]}])\<close> \<open>wfJudgement exampleUpwardJudgementIncomplete2 exampleFormulaIncomplete (Structure [CHR ''R'' \<mapsto> 1, CHR ''Q'' \<mapsto> 1] exampleUniverseIncomplete [CHR ''R'' \<mapsto> {[A]}, CHR ''Q'' \<mapsto> {[B]}])\<close> by blast
+qed
 
 end

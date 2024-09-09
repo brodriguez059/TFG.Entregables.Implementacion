@@ -489,4 +489,15 @@ lemma "(canonicalJudgement 1 myOtherAtomFormula myStructure) = (
   apply (metis map_upds_Cons map_upds_Nil1)
   done
 
+
+
+lemma example_formula_incomplete_is_wf_cpl_instance [simp] : "(wfCPLInstance exampleFormulaIncomplete exampleStructureIncomplete)"
+  by auto
+
+lemma e_is_not_model_of_example_formula_incomplete [simp] : "\<not>(isModel exampleStructureIncomplete e exampleFormulaIncomplete)"
+  by auto
+
+lemma "isDerivable exampleFormulaIncomplete exampleStructureIncomplete (Judgement 1 {} {})"
+  using CPL_Completeness_Theorem e_is_not_model_of_example_formula_incomplete example_formula_incomplete_is_wf_cpl_instance by blast
+
 end

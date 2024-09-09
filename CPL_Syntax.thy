@@ -131,27 +131,6 @@ lemma non_empty_atom_cannot_be_sentence [simp] : "\<lbrakk>
 
 (* ======================== Tests ======================== *)
 
-datatype BEnum = A | B | C (* Finite datatype *)
-
-lemma BEnum_induct: "\<lbrakk>x \<noteq> A; x \<noteq> B\<rbrakk> \<Longrightarrow> x = C"
-  apply(cases x)
-  by auto
-
-lemma UNIV_BEnum: "UNIV = {A, B, C}"
-  by (auto simp add: BEnum_induct)
-
-instantiation BEnum :: enum \<comment> \<open> Note: We must indicate that this type is an enum to use ran and dom \<close>
-begin
-  definition "Enum.enum = [A,B,C]"
-  definition "Enum.enum_all P \<longleftrightarrow> (Ball {A,B,C} P)"
-  definition "Enum.enum_ex P \<longleftrightarrow> (Bex {A,B,C} P)"
-  
-  instance proof
-  qed (auto simp add: enum_BEnum_def enum_all_BEnum_def enum_ex_BEnum_def UNIV_BEnum)
-end
-
-
-
 abbreviation "atomFormula::Formula \<equiv> (Atom (CHR ''E'') [CHR ''x'', CHR ''y''])"
 
 lemma "freeVar atomFormula = {CHR ''x'', CHR ''y''}"
